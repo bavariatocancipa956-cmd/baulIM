@@ -455,6 +455,7 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
     final TextEditingController hallazgoCtrl = TextEditingController();
 
     final DateTime fechaRegistroHoy = DateTime.now();
+    DateTime? fechaCompromiso;
     Uint8List? fotoHallazgoBytes;
     String? fotoHallazgoNombre;
     bool guardandoModal = false;
@@ -605,6 +606,61 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
                       ),
                       const SizedBox(height: 14),
 
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Fecha Compromiso (Límite) *', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                                const SizedBox(height: 4),
+                                InkWell(
+                                  onTap: () async {
+                                    final picked = await showDatePicker(
+                                      context: dialogContext,
+                                      initialDate: fechaCompromiso ?? DateTime.now(),
+                                      firstDate: DateTime.now(),
+                                      lastDate: DateTime(2100),
+                                    );
+                                    if (picked != null) {
+                                      setModalState(() => fechaCompromiso = picked);
+                                    }
+                                  },
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey.shade300),
+                                      borderRadius: BorderRadius.circular(6),
+                                      color: const Color(0xFFF8F9FA),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          fechaCompromiso != null
+                                              ? '${fechaCompromiso!.day.toString().padLeft(2, '0')}/${fechaCompromiso!.month.toString().padLeft(2, '0')}/${fechaCompromiso!.year}'
+                                              : 'Seleccionar Fecha...',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: fechaCompromiso != null ? Colors.black87 : Colors.black38,
+                                            fontWeight: fechaCompromiso != null ? FontWeight.w600 : FontWeight.normal,
+                                          ),
+                                        ),
+                                        const Icon(Icons.calendar_month_rounded, size: 16, color: Color(0xFF0D47A1)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(child: SizedBox()),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
@@ -712,9 +768,10 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
 
                               if (rutinaCtrl.text.trim().isEmpty ||
                                   responsableCtrl.text.trim().isEmpty ||
-                                  hallazgoCtrl.text.trim().isEmpty) {
+                                  hallazgoCtrl.text.trim().isEmpty ||
+                                  fechaCompromiso == null) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('⚠️ Complete todos los campos obligatorios (*)'), backgroundColor: Colors.orange),
+                                  const SnackBar(content: Text('⚠️ Complete todos los campos obligatorios (*) incluyendo la Fecha Límite.'), backgroundColor: Colors.orange),
                                 );
                                 return;
                               }
@@ -738,6 +795,7 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
                                   'dueño': _nombreUsuarioLogueado,
                                   'responsable': responsableCtrl.text.trim(),
                                   'fecha_creacion': fechaRegistroHoy.toIso8601String().split('T')[0],
+                                  'compromiso': fechaCompromiso!.toIso8601String().split('T')[0],
                                   'fecha_cierre': null,
                                   'hashtag': hashtagCtrl.text.trim().isEmpty ? '#Prioridades de turno' : hashtagCtrl.text.trim(),
                                   'hallazgo': hallazgoCtrl.text.trim(),
@@ -842,7 +900,7 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
     final String hallazgoTexto = row['hallazgo']?.toString() ?? '';
     final TextEditingController accionCierreCtrl = TextEditingController(text: row['accion_cierre']?.toString() ?? row['accion']?.toString() ?? '');
 
-    final DateTime fechaCierreHoy = DateTime.now();
+    DateTime fechaCierreSeleccionada = DateTime.now();
     Uint8List? fotoCierreBytes;
     String? fotoCierreNombre;
     bool guardandoModal = false;
@@ -971,25 +1029,39 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Fecha de Cierre (Automática)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                            const Text('Fecha Real de Cierre *', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
                             const SizedBox(height: 4),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade200,
-                                border: Border.all(color: Colors.grey.shade300),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    '${fechaCierreHoy.day.toString().padLeft(2, '0')}/${fechaCierreHoy.month.toString().padLeft(2, '0')}/${fechaCierreHoy.year} (Hoy)',
-                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
-                                  ),
-                                  const Icon(Icons.event_available, size: 16, color: Color(0xFF0D47A1)),
-                                ],
+                            InkWell(
+                              onTap: () async {
+                                final picked = await showDatePicker(
+                                  context: dialogContext,
+                                  initialDate: fechaCierreSeleccionada,
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime.now(),
+                                );
+                                if (picked != null) {
+                                  setModalState(() => fechaCierreSeleccionada = picked);
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(6),
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  border: Border.all(color: Colors.blue.shade300),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      '${fechaCierreSeleccionada.day.toString().padLeft(2, '0')}/${fechaCierreSeleccionada.month.toString().padLeft(2, '0')}/${fechaCierreSeleccionada.year}',
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+                                    ),
+                                    const Icon(Icons.calendar_month_rounded, size: 16, color: Color(0xFF0D47A1)),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
@@ -1088,7 +1160,7 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
 
                                   final Map<String, dynamic> updateData = {
                                     'accion_cierre': accionCierreCtrl.text.trim(),
-                                    'fecha_cierre': fechaCierreHoy.toIso8601String().split('T')[0],
+                                    'fecha_cierre': fechaCierreSeleccionada.toIso8601String().split('T')[0],
                                     'status': 'CERRADAS',
                                   };
 

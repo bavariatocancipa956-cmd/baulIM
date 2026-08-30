@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Importado para copiar a Excel (Portapapeles)
 import 'api_service.dart';
 
 class DashboardOlScreen extends StatefulWidget {
@@ -188,6 +190,7 @@ class _DashboardOlScreenState extends State<DashboardOlScreen> {
           : null;
 
       bool esCerrada = estado == 'CERRADAS';
+      // Lógica estricta de vencimiento basada en Fecha Compromiso
       bool esVencidaEnCierre = esCerrada && fechaComp != null && fechaCierre != null && fechaCierre.isAfter(fechaComp);
       bool esVencidaEnAbierta = !esCerrada && fechaComp != null && hoySinHora.isAfter(fechaComp);
 
@@ -255,7 +258,7 @@ class _DashboardOlScreenState extends State<DashboardOlScreen> {
       return 'CERRADAS';
     }
 
-    String? compStr = row['compromiso']?.toString();
+    String? compStr = row['compromiso']?.toString() ?? row['fecha_compromiso']?.toString();
     if (compStr != null && compStr.isNotEmpty) {
       DateTime? fechaComp = DateTime.tryParse(compStr.split('T')[0]);
       if (fechaComp != null) {
@@ -267,6 +270,49 @@ class _DashboardOlScreenState extends State<DashboardOlScreen> {
       }
     }
     return 'EN PROGRESO';
+  }
+
+  // 📝 FUNCIÓN PARA EXPORTAR A EXCEL (VÍA PORTAPAPELES EN FORMATO CSV/TSV)
+  void _exportarDatosAExcel(String titulo, List<MapEntry<String, Map<String, int>>> datosMap) {
+    if (datosMap.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('⚠️ No hay datos para exportar.'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    // Se usa Tab (\t) en lugar de coma para que al pegar en Excel respete las columnas perfectamente
+    StringBuffer sb = StringBuffer();
+    sb.writeln("Categoría\tReportados\tVigentes\tVencidas\tCerradas Vencidas\t% Cierre Acciones\t% Cierre Vigentes");
+
+    for (var item in datosMap) {
+      String nombre = item.key;
+      int reportados = item.value['reportados'] ?? 0;
+      int vigentes = item.value['vigentes'] ?? 0;
+      int vencidas = item.value['vencidas'] ?? 0;
+      int cerradasVencidas = item.value['cerradas_vencidas'] ?? 0;
+      int aTiempo = item.value['a_tiempo'] ?? 0;
+      int totalCerradas = item.value['total_cerradas'] ?? 0;
+
+      double pctCierreTotal = reportados > 0 ? (totalCerradas / reportados) * 100 : 0.0;
+      double pctCierreVigentes = totalCerradas > 0 ? (aTiempo / totalCerradas) * 100 : 0.0;
+
+      // Formateo los decimales para Excel
+      String strCierreTotal = pctCierreTotal.toStringAsFixed(1).replaceAll('.', ',');
+      String strCierreVigentes = pctCierreVigentes.toStringAsFixed(1).replaceAll('.', ',');
+
+      sb.writeln("$nombre\t$reportados\t$vigentes\t$vencidas\t$cerradasVencidas\t$strCierreTotal%\t$strCierreVigentes%");
+    }
+
+    Clipboard.setData(ClipboardData(text: sb.toString()));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('✅ Datos de "$titulo" copiados. ¡Puede pegarlos directamente en Excel!'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   void _abrirModalBuscadorFiltro(String titulo, List<String> opciones, String seleccionActual, Function(String) onSelect) {
@@ -400,7 +446,7 @@ class _DashboardOlScreenState extends State<DashboardOlScreen> {
             _buildBarraFiltros(),
             const SizedBox(height: 20),
 
-            // 🎯 6 TARJETAS KPIS DISTRIBUIDAS PROPORCIONALMENTE AL 100%
+            // 🎯 6 TARJETAS KPIS DISTRIBUIDAS PROPORCIONALMENTE
             _buildSeccionKPIsEficacia(),
             const SizedBox(height: 24),
 
@@ -425,7 +471,7 @@ class _DashboardOlScreenState extends State<DashboardOlScreen> {
                         const SizedBox(width: 20),
                         Expanded(
                           child: _buildTablaStandard(
-                            titulo: 'Acciones por Territorio (Maestro)',
+                            titulo: 'Acciones por Territorio',
                             icono: Icons.location_on_outlined,
                             columnaNombre: 'Territorio',
                             datosMap: listaTerritorios,
@@ -468,7 +514,7 @@ class _DashboardOlScreenState extends State<DashboardOlScreen> {
                     ),
                     const SizedBox(height: 20),
                     _buildTablaStandard(
-                      titulo: 'Acciones por Territorio (Maestro)',
+                      titulo: 'Acciones por Territorio',
                       icono: Icons.location_on_outlined,
                       columnaNombre: 'Territorio',
                       datosMap: listaTerritorios,
@@ -671,7 +717,6 @@ class _DashboardOlScreenState extends State<DashboardOlScreen> {
     );
   }
 
-  // 🎯 6 TARJETAS KPIS CON DISTRIBUCIÓN RESPONSIVA SIMÉTRICA
   Widget _buildSeccionKPIsEficacia() {
     double pctCierreTotal = _totalAcciones > 0 ? (_cerradas / _totalAcciones) * 100 : 0.0;
     double pctCierreVigente = _cerradas > 0 ? (_cerradasATiempo / _cerradas) * 100 : 0.0;
@@ -772,7 +817,7 @@ class _DashboardOlScreenState extends State<DashboardOlScreen> {
     );
   }
 
-  // 📊 TABLA ESTÁNDAR PARA LAS 4 SECCIONES
+  // 📊 TABLA ESTÁNDAR CON FLEXIBLE WIDTH Y BOTÓN DE EXCEL
   Widget _buildTablaStandard({
     required String titulo,
     required IconData icono,
@@ -780,7 +825,7 @@ class _DashboardOlScreenState extends State<DashboardOlScreen> {
     required List<MapEntry<String, Map<String, int>>> datosMap,
   }) {
     return Container(
-      height: 320,
+      height: 380, // Aumentado ligeramente para mejor lectura sin recortes
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -801,6 +846,30 @@ class _DashboardOlScreenState extends State<DashboardOlScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              // Botón de exportación
+              Tooltip(
+                message: 'Copiar tabla para Excel',
+                child: InkWell(
+                  onTap: () => _exportarDatosAExcel(titulo, datosMap),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1D6F42).withOpacity(0.1), // Verde estilo Excel
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFF1D6F42).withOpacity(0.3)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.file_download_outlined, size: 16, color: Color(0xFF1D6F42)),
+                        SizedBox(width: 6),
+                        Text('Excel', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1D6F42))),
+                      ],
+                    ),
+                  ),
+                ),
+              )
             ],
           ),
           const SizedBox(height: 12),
@@ -813,72 +882,84 @@ class _DashboardOlScreenState extends State<DashboardOlScreen> {
               thumbVisibility: true,
               child: SingleChildScrollView(
                 scrollDirection: Axis.vertical,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Table(
-                    border: TableBorder.all(color: Colors.grey.shade200, width: 1),
-                    defaultColumnWidth: const IntrinsicColumnWidth(),
-                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                    children: [
-                      TableRow(
-                        decoration: const BoxDecoration(color: Color(0xFFF8F9FA)),
+                // Se remueve el SingleChildScrollView horizontal para que la tabla ocupe el ancho real disponible (Flex)
+                child: Table(
+                  border: TableBorder.all(color: Colors.grey.shade200, width: 1),
+                  // Utilizamos FlexColumnWidth para que se adapte al espacio sin cortarse
+                  columnWidths: const {
+                    0: FlexColumnWidth(2.5), // Nombre (más ancho)
+                    1: FlexColumnWidth(1.2), // Reportados
+                    2: FlexColumnWidth(1.2), // Vigentes
+                    3: FlexColumnWidth(1.2), // Vencidas
+                    4: FlexColumnWidth(1.4), // Cerradas Vencidas
+                    5: FlexColumnWidth(1.5), // % Cierre Total
+                    6: FlexColumnWidth(1.5), // % Cierre Vigente
+                  },
+                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                  children: [
+                    TableRow(
+                      decoration: const BoxDecoration(color: Color(0xFFF8F9FA)),
+                      children: [
+                        _headerCellTabla(columnaNombre),
+                        _headerCellTabla('Reportados'),
+                        _headerCellTabla('Vigentes'),
+                        _headerCellTabla('Vencidas'),
+                        _headerCellTabla('Cerradas Vencidas'),
+                        _headerCellTabla('% Cierre Acciones'),
+                        _headerCellTabla('% Cierre Vigentes'),
+                      ],
+                    ),
+                    ...datosMap.map((item) {
+                      String nombre = item.key;
+                      int reportados = item.value['reportados'] ?? 0;
+                      int vigentes = item.value['vigentes'] ?? 0;
+                      int vencidas = item.value['vencidas'] ?? 0;
+                      int cerradasVencidas = item.value['cerradas_vencidas'] ?? 0;
+                      int aTiempo = item.value['a_tiempo'] ?? 0;
+                      int totalCerradas = item.value['total_cerradas'] ?? 0;
+
+                      double pctCierreTotal = reportados > 0 ? (totalCerradas / reportados) * 100 : 0.0;
+                      double pctCierreVigentes = totalCerradas > 0 ? (aTiempo / totalCerradas) * 100 : 0.0;
+
+                      return TableRow(
                         children: [
-                          _headerCellTabla(columnaNombre),
-                          _headerCellTabla('Reportados'),
-                          _headerCellTabla('Vigentes'),
-                          _headerCellTabla('Vencidas'),
-                          _headerCellTabla('Cerradas Vencidas'),
-                          _headerCellTabla('% Cierre Acciones'),
-                          _headerCellTabla('% Cierre Vigentes'),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            child: Text(
+                              nombre,
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(4.0),
+                            child: Text('$reportados', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(4.0),
+                            child: Text('$vigentes', style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(4.0),
+                            child: Text('$vencidas', style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(4.0),
+                            child: Text('$cerradasVencidas', style: const TextStyle(fontSize: 10, color: Colors.deepOrange, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(4.0),
+                            child: Text('${pctCierreTotal.toStringAsFixed(1)}%', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF0D47A1)), textAlign: TextAlign.center),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(4.0),
+                            child: Text('${pctCierreVigentes.toStringAsFixed(1)}%', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: pctCierreVigentes >= 80 ? Colors.green : Colors.orange.shade800), textAlign: TextAlign.center),
+                          ),
                         ],
-                      ),
-                      ...datosMap.map((item) {
-                        String nombre = item.key;
-                        int reportados = item.value['reportados'] ?? 0;
-                        int vigentes = item.value['vigentes'] ?? 0;
-                        int vencidas = item.value['vencidas'] ?? 0;
-                        int cerradasVencidas = item.value['cerradas_vencidas'] ?? 0;
-                        int aTiempo = item.value['a_tiempo'] ?? 0;
-                        int totalCerradas = item.value['total_cerradas'] ?? 0;
-
-                        double pctCierreTotal = reportados > 0 ? (totalCerradas / reportados) * 100 : 0.0;
-                        double pctCierreVigentes = totalCerradas > 0 ? (aTiempo / totalCerradas) * 100 : 0.0;
-
-                        return TableRow(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                              child: Text(nombre, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text('$reportados', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text('$vigentes', style: const TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text('$vencidas', style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text('$cerradasVencidas', style: const TextStyle(fontSize: 11, color: Colors.deepOrange, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text('${pctCierreTotal.toStringAsFixed(1)}%', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0D47A1)), textAlign: TextAlign.center),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text('${pctCierreVigentes.toStringAsFixed(1)}%', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: pctCierreVigentes >= 80 ? Colors.green : Colors.orange.shade800), textAlign: TextAlign.center),
-                            ),
-                          ],
-                        );
-                      }),
-                    ],
-                  ),
+                      );
+                    }),
+                  ],
                 ),
               ),
             ),
@@ -890,11 +971,13 @@ class _DashboardOlScreenState extends State<DashboardOlScreen> {
 
   Widget _headerCellTabla(String text) {
     return Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black87),
+        style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Colors.black87),
         textAlign: TextAlign.center,
+        maxLines: 2,
+        overflow: TextOverflow.visible,
       ),
     );
   }

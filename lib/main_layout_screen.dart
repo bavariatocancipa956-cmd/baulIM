@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dashboard_ol_screen.dart';
+import 'reportes_diarios_screen.dart';
 import 'acciones_ol_screen.dart';
+import 'abordajes_fms_screen.dart'; // <-- AQUÍ IMPORTAMOS LA NUEVA PANTALLA
 
 class MainLayoutScreen extends StatefulWidget {
   final Map<String, dynamic> usuario;
@@ -17,8 +19,9 @@ class MainLayoutScreen extends StatefulWidget {
 }
 
 class _MainLayoutScreenState extends State<MainLayoutScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _selectedIndex = 0;
-  bool _sidebarAbierto = true;
+  bool _sidebarFijoAbierto = true;
 
   String get _nombreUsuario {
     final n = widget.usuario['nombre'] ?? widget.usuario['Nombre'] ?? widget.usuario['usuario'];
@@ -30,53 +33,90 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
     return (c ?? '').toString().trim();
   }
 
+  void _toggleSidebar(bool isMobile) {
+    if (isMobile) {
+      _scaffoldKey.currentState?.openDrawer();
+    } else {
+      setState(() => _sidebarFijoAbierto = !_sidebarFijoAbierto);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Vistas principales
+    final bool isMobile = MediaQuery.of(context).size.width < 850;
+
+    // Vistas principales integradas (índices 0, 1, 2, 3)
     final List<Widget> paginas = [
       DashboardOlScreen(
         usuario: widget.usuario,
-        onToggleSidebar: () => setState(() => _sidebarAbierto = !_sidebarAbierto),
+        onToggleSidebar: () => _toggleSidebar(isMobile),
+      ),
+      ReportesDiariosScreen(
+        usuario: widget.usuario,
+        onToggleSidebar: () => _toggleSidebar(isMobile),
       ),
       AccionesOlScreen(
         usuario: widget.usuario,
-        onToggleSidebar: () => setState(() => _sidebarAbierto = !_sidebarAbierto),
+        onToggleSidebar: () => _toggleSidebar(isMobile),
+      ),
+      // <-- AQUÍ LLAMAMOS A LA PANTALLA REAL (ÍNDICE 3)
+      AbordajesFmsScreen(
+        usuario: widget.usuario,
+        onToggleSidebar: () => _toggleSidebar(isMobile),
       ),
     ];
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: const Color(0xFFF4F6F9),
+      appBar: isMobile
+          ? AppBar(
+        backgroundColor: const Color(0xFF0A2540),
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('LOGÍSTICA OL', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+        elevation: 0,
+      )
+          : null,
+      drawer: isMobile
+          ? Drawer(
+        width: 260,
+        child: _buildSidebarContent(isMobile),
+      )
+          : null,
       body: Row(
         children: [
-          // 🚪 MENÚ LATERAL (SIDEBAR)
-          if (_sidebarAbierto) _buildSidebar(),
+          if (!isMobile && _sidebarFijoAbierto)
+            SizedBox(
+              width: 250,
+              child: _buildSidebarContent(isMobile),
+            ),
 
-          // 📄 CONTENIDO DE LA PANTALLA SELECCIONADA
           Expanded(
-            child: paginas[_selectedIndex],
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: paginas,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSidebar() {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      width: 240,
+  Widget _buildSidebarContent(bool isMobile) {
+    return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF0A2540), // Azul oscuro profesional
+        color: const Color(0xFF0A2540),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 10,
-            offset: const Offset(2, 0),
-          )
+          if (!isMobile)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 10,
+              offset: const Offset(2, 0),
+            )
         ],
       ),
       child: Column(
         children: [
-          // LOGO / ENCABEZADO SIDEBAR
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             decoration: const BoxDecoration(
@@ -99,12 +139,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                     children: [
                       Text(
                         'LOGÍSTICA OL',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 15,
-                          letterSpacing: 0.8,
-                        ),
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: 0.8),
                       ),
                       Text(
                         'Planta Tocancipá',
@@ -117,25 +152,57 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
 
-          // ÍTEMS DE NAVEGACIÓN
-          _buildSidebarItem(
-            index: 0,
-            icon: Icons.dashboard_rounded,
-            label: 'Dashboard',
-          ),
-          _buildSidebarItem(
-            index: 1,
-            icon: Icons.table_chart_rounded,
-            label: 'Baúl de Acciones',
-          ),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  Theme(
+                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                    child: ExpansionTile(
+                      initiallyExpanded: true,
+                      iconColor: Colors.white,
+                      collapsedIconColor: Colors.white60,
+                      leading: const Icon(Icons.folder_open_rounded, color: Colors.white, size: 20),
+                      title: const Text(
+                        'ACCIONES OL',
+                        style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                      ),
+                      childrenPadding: const EdgeInsets.only(left: 12, bottom: 8),
+                      children: [
+                        _buildSidebarItem(index: 0, icon: Icons.dashboard_rounded, label: 'Dashboard General', isMobile: isMobile),
+                        _buildSidebarItem(index: 1, icon: Icons.grid_on_rounded, label: 'Matriz Diaria', isMobile: isMobile),
+                        _buildSidebarItem(index: 2, icon: Icons.table_chart_rounded, label: 'Baúl de Acciones', isMobile: isMobile),
+                      ],
+                    ),
+                  ),
 
-          const Spacer(),
+                  Theme(
+                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                    child: ExpansionTile(
+                      initiallyExpanded: true,
+                      iconColor: Colors.white,
+                      collapsedIconColor: Colors.white60,
+                      leading: const Icon(Icons.security_rounded, color: Colors.white, size: 20),
+                      title: const Text(
+                        'GESTIÓN FMS',
+                        style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                      ),
+                      childrenPadding: const EdgeInsets.only(left: 12, bottom: 8),
+                      children: [
+                        // ESTE ÍNDICE 3 AHORA ABRIRÁ LA PANTALLA REAL
+                        _buildSidebarItem(index: 3, icon: Icons.assignment_ind_rounded, label: 'Abordajes', isMobile: isMobile),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
 
           const Divider(color: Colors.white12, height: 1),
 
-          // PERFIL DE USUARIO LOGUEADO
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
@@ -170,7 +237,6 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
             ),
           ),
 
-          // BOTÓN CERRAR SESIÓN
           Padding(
             padding: const EdgeInsets.only(left: 16, right: 16, bottom: 20),
             child: InkWell(
@@ -202,39 +268,39 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
     );
   }
 
-  Widget _buildSidebarItem({
-    required int index,
-    required IconData icon,
-    required String label,
-  }) {
+  Widget _buildSidebarItem({required int index, required IconData icon, required String label, required bool isMobile}) {
     final bool esSeleccionado = _selectedIndex == index;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: InkWell(
-        onTap: () => setState(() => _selectedIndex = index),
+        onTap: () {
+          setState(() => _selectedIndex = index);
+          if (isMobile) {
+            Navigator.pop(context);
+          }
+        },
         borderRadius: BorderRadius.circular(8),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: esSeleccionado ? const Color(0xFF0D47A1) : Colors.transparent,
+            color: esSeleccionado ? const Color(0xFF1976D2).withOpacity(0.8) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             children: [
-              Icon(
-                icon,
-                color: esSeleccionado ? Colors.white : Colors.white60,
-                size: 20,
-              ),
+              Icon(icon, color: esSeleccionado ? Colors.white : Colors.white60, size: 18),
               const SizedBox(width: 14),
-              Text(
-                label,
-                style: TextStyle(
-                  color: esSeleccionado ? Colors.white : Colors.white70,
-                  fontSize: 13,
-                  fontWeight: esSeleccionado ? FontWeight.bold : FontWeight.w500,
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: esSeleccionado ? Colors.white : Colors.white70,
+                    fontSize: 12,
+                    fontWeight: esSeleccionado ? FontWeight.bold : FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
