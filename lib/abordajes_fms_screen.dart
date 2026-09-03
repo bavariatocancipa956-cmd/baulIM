@@ -4,11 +4,12 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart'; // Agregado para leer el logo
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:http/http.dart' as http;
 import 'api_service.dart';
 
 class AbordajesFmsScreen extends StatefulWidget {
@@ -222,7 +223,7 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
     });
   }
 
-  // 📄 --- GENERADOR DE PDF --- 📄
+  // 📄 --- GENERADOR DE PDF (LOCAL FLUTTER) --- 📄
   Future<pw.ImageProvider?> _obtenerImagenPdf(String? url) async {
     if (url == null || url.trim().isEmpty || url == 'null') return null;
     try {
@@ -720,6 +721,37 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
                                   if (urlFirma != null) updateData['firma_opm'] = urlFirma;
 
                                   await ApiService.actualizar('fms', 'fms_reporte', 'id', idRegistro, updateData);
+
+                                  // 🚀 INICIO DE CÓDIGO NUEVO: DISPARAR EL BOT DE PDF A TRAVÉS DE NGINX
+                                  try {
+                                    final payloadBot = {
+                                      "fecha": _formatearFechaCorta(row['fecha']?.toString()),
+                                      "fecha_hora_abordaje": '${fechaHoraSeleccionada.day.toString().padLeft(2,'0')}/${fechaHoraSeleccionada.month.toString().padLeft(2,'0')}/${fechaHoraSeleccionada.year} ${fechaHoraSeleccionada.hour.toString().padLeft(2,'0')}:${fechaHoraSeleccionada.minute.toString().padLeft(2,'0')}',
+                                      "turno": row['turno']?.toString() ?? '-',
+                                      "opm": opmNombre,
+                                      "supervisor": row['supervisor']?.toString() ?? '-',
+                                      "origen_opm": origenOpm,
+                                      "evento": row['evento']?.toString() ?? '-',
+                                      "maquina": row['maquina']?.toString() ?? '-',
+                                      "lugar": lugarCtrl.text.trim(),
+                                      "area": row['area']?.toString() ?? '-',
+                                      "accion_preventiva": accionPrevCtrl.text.trim(),
+                                      "descripcion": descripcionCtrl.text.trim(),
+                                      "accion_correctiva": accionCorrCtrl.text.trim(),
+                                      "foto_abordaje": urlFotoAbordaje ?? row['foto_abordaje']?.toString(),
+                                      "firma_opm": urlFirma ?? row['firma_opm']?.toString()
+                                    };
+
+                                    // URL segura apuntando a Nginx
+                                    await http.post(
+                                      Uri.parse('https://plantatocancipa.site/api/generar-abordaje'),
+                                      headers: {'Content-Type': 'application/json'},
+                                      body: jsonEncode(payloadBot),
+                                    ).timeout(const Duration(seconds: 4));
+                                  } catch (e) {
+                                    debugPrint("Error notificando al bot de PDF: $e");
+                                  }
+                                  // 🚀 FIN DE CÓDIGO NUEVO
 
                                   if (mounted) {
                                     Navigator.of(ctx).pop();
