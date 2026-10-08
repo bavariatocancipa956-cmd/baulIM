@@ -62,6 +62,17 @@ class HistorialCincoWhyScreen extends StatefulWidget {
 }
 
 class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
+  // --- CONSTANTES DE DISEÑO EJECUTIVO ---
+  final Color _colorBackground = const Color(0xFFF1F5F9); // Fondo gris muy suave
+  final Color _colorPrincipal = const Color(0xFFF36F21); // Naranja corporativo
+  final Color _colorEncabezados = const Color(0xFF1E293B); // Azul Marino / Slate oscuro para headers
+  final Color _colorTextoOscuro = const Color(0xFF334155);
+  final Color _colorTextoMuted = const Color(0xFF64748B);
+
+  final List<BoxShadow> _sombraCards = [
+    BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))
+  ];
+
   final ScrollController _tablaScrollController = ScrollController();
   bool _cargando = true;
   String? _mensajeError;
@@ -128,8 +139,25 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
 
       _registros = datosProcesados;
       _extraerListasParaFiltros();
-      _aplicarFiltros();
 
+      if (_registros.isNotEmpty) {
+        List<DateTime> fechas = [];
+        for (var r in _registros) {
+          String? rawF = r['fecha']?.toString();
+          if (rawF != null && rawF.isNotEmpty) {
+            String soloF = rawF.split('T')[0].split(' ')[0];
+            DateTime? dt = DateTime.tryParse(soloF);
+            if (dt != null) fechas.add(dt);
+          }
+        }
+        if (fechas.isNotEmpty) {
+          fechas.sort();
+          _fechaDesde = fechas.first;
+          _fechaHasta = fechas.last;
+        }
+      }
+
+      _aplicarFiltros();
       setState(() => _cargando = false);
     } catch (e) {
       setState(() {
@@ -285,9 +313,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
     }
   }
 
-  // ==========================================
-  // FUNCIÓN FALTANTE: VISOR DE IMÁGENES
-  // ==========================================
   void _mostrarPreviewImagen(String dato, {required bool isBase64}) {
     String cleanData = dato;
     if (isBase64 && dato.contains('IMAGEN_ADJUNTA:')) {
@@ -298,33 +323,42 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
       context: context,
       builder: (ctx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppBar(
-                title: const Text('Evidencia Fotográfica', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                backgroundColor: const Color(0xFF0A2540), foregroundColor: Colors.white, automaticallyImplyLeading: false,
-                actions: [IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx))]
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: isBase64
-                  ? Image.memory(base64Decode(cleanData), fit: BoxFit.contain, height: 400, errorBuilder: (c,e,s) => const Icon(Icons.broken_image, size: 50, color: Colors.grey))
-                  : Image.network(cleanData, fit: BoxFit.contain, height: 400, errorBuilder: (c,e,s) => const Icon(Icons.broken_image, size: 50, color: Colors.grey)),
-            ),
-          ],
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 700, maxHeight: 650),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: const BoxDecoration(color: Color(0xFF1E293B), borderRadius: BorderRadius.vertical(top: Radius.circular(12))),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Evidencia Fotográfica', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                    IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.of(ctx).pop(), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: InteractiveViewer(
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    child: isBase64
+                        ? Image.memory(base64Decode(cleanData), fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Padding(padding: EdgeInsets.all(30.0), child: Text('Error al cargar imagen', style: TextStyle(color: Colors.red))))
+                        : Image.network(cleanData, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Padding(padding: EdgeInsets.all(30.0), child: Text('Enlace inválido', style: TextStyle(color: Colors.red)))),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // ==========================================
-  // MODAL DE EDICIÓN TOTAL (CREADOR)
-  // ==========================================
   void _abrirModalEdicion(Map<String, dynamic> row, bool soloLectura) {
     dynamic id = row['id'];
 
-    // 1. Feedback de revisión
     String estadoActual = (row['estado']?.toString() ?? 'PENDIENTE').toUpperCase();
     String calificacion = row['resultado']?.toString() ?? '0.0%';
     String obs1 = row['observacion_evaluador']?.toString() ?? 'Sin observaciones aún.';
@@ -332,7 +366,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
     String obs2 = row['Observacion 2']?.toString() ?? row['observacion_2']?.toString() ?? 'Sin observaciones de segunda revisión.';
     String estadoRevision = row['estado_revicion']?.toString() ?? '';
 
-    // 2. Controladores Generales
     DateTime fechaSelect = DateTime.tryParse(row['fecha']?.toString() ?? '') ?? DateTime.now();
     String turnoSelect = row['turno']?.toString() ?? 'T1';
     if (!['T1', 'T2', 'T3'].contains(turnoSelect)) turnoSelect = 'T1';
@@ -352,7 +385,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
     String reqInvestigacion = row['requiere_investigacion_adicional']?.toString().toUpperCase() == 'SI' ? 'SI' : 'NO';
     String encontroCausa = row['encontro_causa_raiz']?.toString().toUpperCase() == 'SI' ? 'SI' : 'NO';
 
-    // 3. Controladores 5 Porqués
     List<TextEditingController> pqCtrls = List.generate(5, (i) => TextEditingController(text: row['porque_${i + 1}']?.toString() ?? ''));
     List<TextEditingController> exCtrls = List.generate(5, (i) => TextEditingController(text: row['explique_porque_${i + 1}']?.toString() ?? ''));
     List<TextEditingController> evTextCtrls = [];
@@ -360,7 +392,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
     List<String> evidenciasExistentesURL = List.generate(5, (_) => '');
     List<Uint8List?> nuevasEvidenciasBytes = List.filled(5, null);
 
-    // FILTRO ESTRICTO DE LIMPIEZA DE BASE64
     for (int i = 1; i <= 5; i++) {
       String rawEvidencia = row['evidencia_porque_$i']?.toString() ?? '';
       String textoPuro = rawEvidencia;
@@ -384,7 +415,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
       evidenciasExistentesURL[i - 1] = urlOBase64;
     }
 
-    // 4. Controladores Acciones
     List<AccionEditItem> accionesEditables = [];
     List<String> validActividades = ['DTO', 'SLA', 'Entrenamiento', 'PIs', 'Mapa de Procesos', 'PM Plan', 'Check List'];
 
@@ -462,54 +492,55 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
 
               return Dialog(
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                backgroundColor: const Color(0xFFF8FAFC),
                 insetPadding: EdgeInsets.all(isMobile ? 12 : 24),
-                child: Container(
+                child: SizedBox(
                   width: isMobile ? double.infinity : 900,
-                  padding: const EdgeInsets.all(20),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(soloLectura ? Icons.visibility : Icons.edit_note_rounded, color: const Color(0xFF1976D2), size: 24),
-                              const SizedBox(width: 8),
-                              Text(soloLectura ? 'Detalle del Reporte (Aprobado)' : 'Editar Reporte 5 Why', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF0A2540))),
-                            ],
-                          ),
-                          IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
-                        ],
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        decoration: const BoxDecoration(color: Color(0xFF1E293B), borderRadius: BorderRadius.vertical(top: Radius.circular(12))),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(soloLectura ? Icons.visibility : Icons.edit_note_rounded, color: Colors.white, size: 24),
+                                const SizedBox(width: 10),
+                                Text(soloLectura ? 'Detalle del Reporte' : 'Editar Reporte 5 Why', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                              ],
+                            ),
+                            IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(ctx), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+                          ],
+                        ),
                       ),
-                      const Divider(),
-
                       Expanded(
                         child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(24),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // 1. PANEL DE FEEDBACK DEL REVISOR
                               Container(
-                                padding: const EdgeInsets.all(12),
-                                margin: const EdgeInsets.only(bottom: 16),
-                                decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.blue.shade200, width: 1.5)),
+                                padding: const EdgeInsets.all(16),
+                                margin: const EdgeInsets.only(bottom: 24),
+                                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200), boxShadow: _sombraCards),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text('💡 RETROALIMENTACIÓN DEL REVISOR', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Color(0xFF1976D2))),
-                                    const SizedBox(height: 8),
+                                    const Text('RETROALIMENTACIÓN DEL REVISOR', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Color(0xFF64748B))),
+                                    const SizedBox(height: 12),
                                     Row(
                                       children: [
-                                        Expanded(child: _datoRowVisual('Estado 1ra Revisión:', estadoActual, isBold: true)),
+                                        Expanded(child: _datoRowVisual('Estado 1ra Rev:', estadoActual, isBold: true)),
                                         Expanded(child: _datoRowVisual('Calificación:', calificacion, isBold: true)),
                                       ],
                                     ),
                                     _datoRowVisual('Observación 1:', obs1),
-                                    const Divider(color: Colors.blue),
+                                    const Divider(height: 24),
                                     Row(
                                       children: [
-                                        Expanded(child: _datoRowVisual('Aprobación Final:', resFinal, isBold: true, color: Colors.orange.shade900)),
+                                        Expanded(child: _datoRowVisual('Aprobación Final:', resFinal, isBold: true, color: const Color(0xFF00B4D8))),
                                         Expanded(child: _datoRowVisual('Estado Reenvío:', estadoRevision.isEmpty ? 'Ninguno' : estadoRevision, isBold: true)),
                                       ],
                                     ),
@@ -520,22 +551,21 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
 
                               if (soloLectura)
                                 Container(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.green)),
+                                  margin: const EdgeInsets.only(bottom: 20),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.green.shade200)),
                                   child: const Row(
                                     children: [
                                       Icon(Icons.check_circle, color: Colors.green, size: 18),
                                       SizedBox(width: 8),
-                                      Text('Este reporte ya ha sido aprobado y no puede ser editado.', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 11)),
+                                      Text('Reporte aprobado (Solo lectura).', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 11)),
                                     ],
                                   ),
                                 ),
 
-                              Text(soloLectura ? '📄 FORMULARIO (SOLO LECTURA)' : '✏️ FORMULARIO DE EDICIÓN', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF475569))),
-                              const SizedBox(height: 12),
+                              Text(soloLectura ? 'FORMULARIO (SOLO LECTURA)' : 'FORMULARIO DE EDICIÓN', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF1E293B))),
+                              const SizedBox(height: 16),
 
-                              // --- 1. INFO GENERAL ---
                               _seccionSubtitulo('1. Información General', Icons.feed_rounded),
                               Row(
                                 children: [
@@ -543,7 +573,7 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        const Text('Fecha', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                                        const Text('Fecha', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                                         const SizedBox(height: 4),
                                         InkWell(
                                           onTap: soloLectura ? null : () async {
@@ -552,7 +582,7 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                           },
                                           child: Container(
                                             height: 35, padding: const EdgeInsets.symmetric(horizontal: 10),
-                                            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? Colors.grey.shade100 : Colors.white),
+                                            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? const Color(0xFFF8FAFC) : Colors.white),
                                             child: Row(
                                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                               children: [
@@ -565,16 +595,16 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 12),
                                   Expanded(
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          const Text('Turno', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                                          const Text('Turno', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                                           const SizedBox(height: 4),
                                           Container(
                                             height: 35, padding: const EdgeInsets.symmetric(horizontal: 10),
-                                            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? Colors.grey.shade100 : Colors.white),
+                                            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? const Color(0xFFF8FAFC) : Colors.white),
                                             child: DropdownButtonHideUnderline(
                                               child: DropdownButton<String>(
                                                 value: turnoSelect, isExpanded: true, style: TextStyle(fontSize: 11, color: soloLectura ? Colors.black54 : Colors.black87),
@@ -588,20 +618,20 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                   )
                                 ],
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 12),
                               Row(
                                 children: [
                                   Expanded(child: _buildInputTextField('Área / Proceso', areaCtrl, readOnly: soloLectura)),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 12),
                                   Expanded(
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          const Text('PI Afectado', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                                          const Text('PI Afectado', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                                           const SizedBox(height: 4),
                                           Container(
                                             height: 35, padding: const EdgeInsets.symmetric(horizontal: 10),
-                                            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? Colors.grey.shade100 : Colors.white),
+                                            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? const Color(0xFFF8FAFC) : Colors.white),
                                             child: DropdownButtonHideUnderline(
                                               child: DropdownButton<String>(
                                                 value: piSeleccionado,
@@ -617,34 +647,32 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                   )
                                 ],
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 12),
                               _buildInputTextField('Participantes', participantesCtrl, readOnly: soloLectura),
 
-                              const SizedBox(height: 16),
-                              // --- 2. DISPARADOR ---
+                              const SizedBox(height: 24),
                               _seccionSubtitulo('2. Disparador y Contención', Icons.warning_rounded),
                               _buildInputTextField('Valor del Disparador Alcanzado', disparadorCtrl, readOnly: soloLectura),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 12),
                               _buildInputTextField('¿Qué se hizo para contener el problema?', contencionCtrl, maxLines: 2, readOnly: soloLectura),
 
-                              const SizedBox(height: 16),
-                              // --- 3. LOS 5 PORQUÉS ---
+                              const SizedBox(height: 24),
                               _seccionSubtitulo('3. Análisis de Causa Raíz (5W)', Icons.account_tree_rounded),
                               ...List.generate(5, (index) {
                                 bool tieneUrlAnterior = evidenciasExistentesURL[index].isNotEmpty;
 
                                 return Container(
                                   margin: const EdgeInsets.only(bottom: 12),
-                                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.blue.shade100)),
+                                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                        decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8))),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                        decoration: const BoxDecoration(color: Color(0xFF1E293B), borderRadius: BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8))),
                                         child: Row(
                                           children: [
-                                            Text('¿Por qué ${index + 1}?', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1976D2), fontSize: 12)),
+                                            Text('¿Por qué ${index + 1}?', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 11)),
                                           ],
                                         ),
                                       ),
@@ -663,7 +691,7 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                               children: [
                                                 Expanded(
                                                     child: Text(
-                                                      nuevasEvidenciasBytes[index] != null ? '✅ Nueva imagen lista para subir' : (tieneUrlAnterior ? '🖼️ Imagen actual en servidor (Se conservará)' : 'Sin imagen fotográfica'),
+                                                      nuevasEvidenciasBytes[index] != null ? '✅ Nueva imagen lista' : (tieneUrlAnterior ? '🖼️ Imagen actual en servidor' : 'Sin imagen fotográfica'),
                                                       style: TextStyle(fontSize: 10, color: nuevasEvidenciasBytes[index] != null ? Colors.green : Colors.grey.shade600, fontStyle: FontStyle.italic),
                                                     )
                                                 ),
@@ -672,7 +700,7 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                                     onPressed: () => seleccionarNuevaImagen(index),
                                                     icon: const Icon(Icons.upload_file, size: 14),
                                                     label: const Text('Cambiar Foto', style: TextStyle(fontSize: 10)),
-                                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade200, foregroundColor: Colors.black87, elevation: 0, minimumSize: const Size(0, 30)),
+                                                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF8FAFC), foregroundColor: Colors.black87, elevation: 0, minimumSize: const Size(0, 30)),
                                                   )
                                                 else if (tieneUrlAnterior)
                                                   TextButton.icon(
@@ -690,8 +718,7 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                 );
                               }),
 
-                              const SizedBox(height: 16),
-                              // --- 4. CONCLUSIÓN ---
+                              const SizedBox(height: 24),
                               _seccionSubtitulo('Conclusión', Icons.search_rounded),
                               Row(
                                 children: [
@@ -699,11 +726,11 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          const Text('¿Requiere inv. adicional?', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                                          const Text('¿Requiere inv. adicional?', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                                           const SizedBox(height: 4),
                                           Container(
                                             height: 35, padding: const EdgeInsets.symmetric(horizontal: 10),
-                                            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? Colors.grey.shade100 : Colors.white),
+                                            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? const Color(0xFFF8FAFC) : Colors.white),
                                             child: DropdownButtonHideUnderline(
                                               child: DropdownButton<String>(
                                                 value: reqInvestigacion, isExpanded: true, style: TextStyle(fontSize: 11, color: soloLectura ? Colors.black54 : Colors.black87),
@@ -715,16 +742,16 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                         ],
                                       )
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 12),
                                   Expanded(
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          const Text('¿Encontró Causa Raíz?', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                                          const Text('¿Encontró Causa Raíz?', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                                           const SizedBox(height: 4),
                                           Container(
                                             height: 35, padding: const EdgeInsets.symmetric(horizontal: 10),
-                                            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? Colors.grey.shade100 : Colors.white),
+                                            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? const Color(0xFFF8FAFC) : Colors.white),
                                             child: DropdownButtonHideUnderline(
                                               child: DropdownButton<String>(
                                                 value: encontroCausa, isExpanded: true, style: TextStyle(fontSize: 11, color: soloLectura ? Colors.black54 : Colors.black87),
@@ -738,11 +765,10 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 12),
                               _buildInputTextField('Descripción Causa Raíz (Si aplica)', causaRaizCtrl, maxLines: 2, readOnly: soloLectura),
 
-                              const SizedBox(height: 16),
-                              // --- 5. ACCIONES ---
+                              const SizedBox(height: 24),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
@@ -752,7 +778,7 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                       onPressed: agregarAccion,
                                       icon: const Icon(Icons.add_circle, size: 14),
                                       label: const Text('Agregar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                                      style: TextButton.styleFrom(backgroundColor: Colors.blue.shade50),
+                                      style: TextButton.styleFrom(backgroundColor: const Color(0xFFF8FAFC)),
                                     )
                                 ],
                               ),
@@ -769,7 +795,7 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                       Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Text('Acción #${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1976D2), fontSize: 12)),
+                                          Text('Acción #${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B), fontSize: 11)),
                                           if (!soloLectura && accionesEditables.length > 2)
                                             InkWell(onTap: () => eliminarAccion(index), child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 16))
                                         ],
@@ -781,11 +807,11 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                               child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  const Text('Tipo', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                                                  const Text('Tipo', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                                                   const SizedBox(height: 4),
                                                   Container(
                                                     height: 35, padding: const EdgeInsets.symmetric(horizontal: 10),
-                                                    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? Colors.grey.shade100 : Colors.white),
+                                                    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? const Color(0xFFF8FAFC) : Colors.white),
                                                     child: DropdownButtonHideUnderline(
                                                       child: DropdownButton<String>(
                                                         value: acc.tipoAccion, isExpanded: true, style: TextStyle(fontSize: 11, color: soloLectura ? Colors.black54 : Colors.black87),
@@ -802,17 +828,17 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                                 ],
                                               )
                                           ),
-                                          const SizedBox(width: 8),
+                                          const SizedBox(width: 12),
                                           Expanded(
                                               child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  const Text('Actividad', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                                                  const Text('Actividad', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                                                   const SizedBox(height: 4),
                                                   esPreventiva
                                                       ? Container(
                                                     height: 35, padding: const EdgeInsets.symmetric(horizontal: 10),
-                                                    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? Colors.grey.shade100 : Colors.white),
+                                                    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? const Color(0xFFF8FAFC) : Colors.white),
                                                     child: DropdownButtonHideUnderline(
                                                       child: DropdownButton<String>(
                                                         value: acc.actividadSeleccionada, isExpanded: true, style: TextStyle(fontSize: 11, color: soloLectura ? Colors.black54 : Colors.black87),
@@ -840,7 +866,7 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                               child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  const Text('Fecha Cierre', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                                                  const Text('Fecha Cierre', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                                                   const SizedBox(height: 4),
                                                   InkWell(
                                                     onTap: soloLectura ? null : () async {
@@ -849,7 +875,7 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                                     },
                                                     child: Container(
                                                       height: 35, padding: const EdgeInsets.symmetric(horizontal: 10),
-                                                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? Colors.grey.shade100 : Colors.white),
+                                                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? const Color(0xFFF8FAFC) : Colors.white),
                                                       child: Row(
                                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                         children: [
@@ -868,11 +894,11 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                               child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  const Text('Estado', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                                                  const Text('Estado', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                                                   const SizedBox(height: 4),
                                                   Container(
                                                     height: 35, padding: const EdgeInsets.symmetric(horizontal: 10),
-                                                    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? Colors.grey.shade100 : Colors.white),
+                                                    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? const Color(0xFFF8FAFC) : Colors.white),
                                                     child: DropdownButtonHideUnderline(
                                                       child: DropdownButton<String>(
                                                         value: acc.estado, isExpanded: true, style: TextStyle(fontSize: 11, color: soloLectura ? Colors.black54 : Colors.black87),
@@ -896,136 +922,132 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                           ),
                         ),
                       ),
-                      const Divider(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: soloLectura
-                            ? [
-                          ElevatedButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1976D2), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
-                            child: const Text('Cerrar', style: TextStyle(fontWeight: FontWeight.bold)),
-                          )
-                        ]
-                            : [
-                          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar', style: TextStyle(fontWeight: FontWeight.bold))),
-                          const SizedBox(width: 12),
-                          ElevatedButton.icon(
-                            onPressed: guardando ? null : () async {
-
-                              // Validaciones
-                              if (areaCtrl.text.trim().isEmpty || piSeleccionado == null || disparadorCtrl.text.trim().isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, complete Área, PI y Disparador.'), backgroundColor: Colors.orange));
-                                return;
-                              }
-
-                              for (int i = 0; i < accionesEditables.length; i++) {
-                                var a = accionesEditables[i];
-                                if (a.tipoAccion == null || a.descripcionCtrl.text.trim().isEmpty || a.responsableCtrl.text.trim().isEmpty || a.fechaCierre == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Complete todos los campos de la Acción #${i+1}'), backgroundColor: Colors.orange));
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey.shade200))),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: soloLectura
+                              ? [
+                            ElevatedButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E293B), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), elevation: 0),
+                              child: const Text('Cerrar', style: TextStyle(fontWeight: FontWeight.bold)),
+                            )
+                          ]
+                              : [
+                            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
+                            const SizedBox(width: 12),
+                            ElevatedButton.icon(
+                              onPressed: guardando ? null : () async {
+                                if (areaCtrl.text.trim().isEmpty || piSeleccionado == null || disparadorCtrl.text.trim().isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, complete Área, PI y Disparador.'), backgroundColor: Colors.orange));
                                   return;
                                 }
-                                if (a.tipoAccion == 'Preventiva' && a.actividadSeleccionada == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Seleccione una actividad para la Acción #${i+1}'), backgroundColor: Colors.orange));
-                                  return;
-                                }
-                              }
 
-                              setModalState(() => guardando = true);
-
-                              // 1. Subir nuevas imágenes si hay
-                              for (int i = 0; i < 5; i++) {
-                                if (nuevasEvidenciasBytes[i] != null) {
-                                  String? urlSubida = await ApiService.subirImagen(nuevasEvidenciasBytes[i]!);
-                                  if (urlSubida != null) {
-                                    evidenciasExistentesURL[i] = urlSubida;
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error al subir imagen.'), backgroundColor: Colors.red));
-                                    setModalState(() => guardando = false);
+                                for (int i = 0; i < accionesEditables.length; i++) {
+                                  var a = accionesEditables[i];
+                                  if (a.tipoAccion == null || a.descripcionCtrl.text.trim().isEmpty || a.responsableCtrl.text.trim().isEmpty || a.fechaCierre == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Complete todos los campos de la Acción #${i+1}'), backgroundColor: Colors.orange));
+                                    return;
+                                  }
+                                  if (a.tipoAccion == 'Preventiva' && a.actividadSeleccionada == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Seleccione una actividad para la Acción #${i+1}'), backgroundColor: Colors.orange));
                                     return;
                                   }
                                 }
-                              }
 
-                              // Construir cadena final de evidencia: "Texto | URL"
-                              String getEvidenciaFinal(int index) {
-                                String texto = evTextCtrls[index].text.trim();
-                                String url = evidenciasExistentesURL[index];
-                                if (url.isNotEmpty && texto.isNotEmpty) return '$texto | $url';
-                                if (url.isNotEmpty) return url;
-                                return texto;
-                              }
+                                setModalState(() => guardando = true);
 
-                              // 2. Construir Payload asegurando el envio a PENDIENTE REVISION
-                              final payload = {
-                                'fecha': DateFormat('yyyy-MM-dd').format(fechaSelect),
-                                'turno': turnoSelect,
-                                'area': areaCtrl.text.trim(),
-                                'pi': piSeleccionado ?? '',
-                                'participantes': participantesCtrl.text.trim(),
-                                'valor_disparador_alcanzado': disparadorCtrl.text.trim(),
-                                'contencion_problema': contencionCtrl.text.trim(),
-                                'requiere_investigacion_adicional': reqInvestigacion,
-                                'encontro_causa_raiz': encontroCausa,
-                                'causa raiz': causaRaizCtrl.text.trim(), // COLUMNA EXACTA SIN GUION BAJO
-
-                                'porque_1': pqCtrls[0].text.trim(), 'explique_porque_1': exCtrls[0].text.trim(), 'evidencia_porque_1': getEvidenciaFinal(0),
-                                'porque_2': pqCtrls[1].text.trim(), 'explique_porque_2': exCtrls[1].text.trim(), 'evidencia_porque_2': getEvidenciaFinal(1),
-                                'porque_3': pqCtrls[2].text.trim(), 'explique_porque_3': exCtrls[2].text.trim(), 'evidencia_porque_3': getEvidenciaFinal(2),
-                                'porque_4': pqCtrls[3].text.trim(), 'explique_porque_4': exCtrls[3].text.trim(), 'evidencia_porque_4': getEvidenciaFinal(3),
-                                'porque_5': pqCtrls[4].text.trim(), 'explique_porque_5': exCtrls[4].text.trim(), 'evidencia_porque_5': getEvidenciaFinal(4),
-
-                                // Acciones (Sobreescribimos hasta 4, limpiamos las que no existan)
-                                'accion_1': accionesEditables.isNotEmpty ? accionesEditables[0].tipoAccion : '',
-                                'actividad_1': accionesEditables.isNotEmpty && accionesEditables[0].tipoAccion == 'Preventiva' ? (accionesEditables[0].actividadSeleccionada ?? '') : '',
-                                'descripcion_1': accionesEditables.isNotEmpty ? accionesEditables[0].descripcionCtrl.text : '',
-                                'responsable_1': accionesEditables.isNotEmpty ? accionesEditables[0].responsableCtrl.text : '',
-                                'fecha_cierre_1': (accionesEditables.isNotEmpty && accionesEditables[0].fechaCierre != null) ? DateFormat('yyyy-MM-dd').format(accionesEditables[0].fechaCierre!) : null,
-                                'estado_accion1': accionesEditables.isNotEmpty ? accionesEditables[0].estado : '',
-
-                                'accion_2': accionesEditables.length > 1 ? accionesEditables[1].tipoAccion : '',
-                                'actividad_2': accionesEditables.length > 1 && accionesEditables[1].tipoAccion == 'Preventiva' ? (accionesEditables[1].actividadSeleccionada ?? '') : '',
-                                'descripcion_2': accionesEditables.length > 1 ? accionesEditables[1].descripcionCtrl.text : '',
-                                'responsable_2': accionesEditables.length > 1 ? accionesEditables[1].responsableCtrl.text : '',
-                                'fecha_cierre_2': (accionesEditables.length > 1 && accionesEditables[1].fechaCierre != null) ? DateFormat('yyyy-MM-dd').format(accionesEditables[1].fechaCierre!) : null,
-                                'estado_accion2': accionesEditables.length > 1 ? accionesEditables[1].estado : '',
-
-                                'accion_3': accionesEditables.length > 2 ? accionesEditables[2].tipoAccion : '',
-                                'actividad_3': accionesEditables.length > 2 && accionesEditables[2].tipoAccion == 'Preventiva' ? (accionesEditables[2].actividadSeleccionada ?? '') : '',
-                                'descripcion_3': accionesEditables.length > 2 ? accionesEditables[2].descripcionCtrl.text : '',
-                                'responsable_3': accionesEditables.length > 2 ? accionesEditables[2].responsableCtrl.text : '',
-                                'fecha_cierre_3': (accionesEditables.length > 2 && accionesEditables[2].fechaCierre != null) ? DateFormat('yyyy-MM-dd').format(accionesEditables[2].fechaCierre!) : null,
-                                'estado_accion3': accionesEditables.length > 2 ? accionesEditables[2].estado : '',
-
-                                'accion_4': accionesEditables.length > 3 ? accionesEditables[3].tipoAccion : '',
-                                'actividad_4': accionesEditables.length > 3 && accionesEditables[3].tipoAccion == 'Preventiva' ? (accionesEditables[3].actividadSeleccionada ?? '') : '',
-                                'descripcion_4': accionesEditables.length > 3 ? accionesEditables[3].descripcionCtrl.text : '',
-                                'responsable_4': accionesEditables.length > 3 ? accionesEditables[3].responsableCtrl.text : '',
-                                'fecha_cierre_4': (accionesEditables.length > 3 && accionesEditables[3].fechaCierre != null) ? DateFormat('yyyy-MM-dd').format(accionesEditables[3].fechaCierre!) : null,
-                                'estado_accion4': accionesEditables.length > 3 ? accionesEditables[3].estado : '',
-
-                                // RETORNA A REVISIÓN ESTRICTAMENTE
-                                'estado_revicion': 'PENDIENTE REVISION',
-                                'estado': 'PENDIENTE',
-                              };
-
-                              try {
-                                await ApiService.actualizar('gestion', '5why', 'id', id, payload);
-                                if (mounted) {
-                                  Navigator.pop(ctx);
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reporte actualizado y enviado a revisión'), backgroundColor: Colors.green));
-                                  _cargarDatos();
+                                for (int i = 0; i < 5; i++) {
+                                  if (nuevasEvidenciasBytes[i] != null) {
+                                    String? urlSubida = await ApiService.subirImagen(nuevasEvidenciasBytes[i]!);
+                                    if (urlSubida != null) {
+                                      evidenciasExistentesURL[i] = urlSubida;
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error al subir imagen.'), backgroundColor: Colors.red));
+                                      setModalState(() => guardando = false);
+                                      return;
+                                    }
+                                  }
                                 }
-                              } catch (e) {
-                                setModalState(() => guardando = false);
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al guardar: $e'), backgroundColor: Colors.red));
-                              }
-                            },
-                            icon: guardando ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.send_rounded, size: 16),
-                            label: Text(guardando ? 'Enviando...' : 'Guardar y Enviar a Revisión', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1976D2), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
-                          )
-                        ],
+
+                                String getEvidenciaFinal(int index) {
+                                  String texto = evTextCtrls[index].text.trim();
+                                  String url = evidenciasExistentesURL[index];
+                                  if (url.isNotEmpty && texto.isNotEmpty) return '$texto | $url';
+                                  if (url.isNotEmpty) return url;
+                                  return texto;
+                                }
+
+                                final payload = {
+                                  'fecha': DateFormat('yyyy-MM-dd').format(fechaSelect),
+                                  'turno': turnoSelect,
+                                  'area': areaCtrl.text.trim(),
+                                  'pi': piSeleccionado ?? '',
+                                  'participantes': participantesCtrl.text.trim(),
+                                  'valor_disparador_alcanzado': disparadorCtrl.text.trim(),
+                                  'contencion_problema': contencionCtrl.text.trim(),
+                                  'requiere_investigacion_adicional': reqInvestigacion,
+                                  'encontro_causa_raiz': encontroCausa,
+                                  'causa raiz': causaRaizCtrl.text.trim(),
+
+                                  'porque_1': pqCtrls[0].text.trim(), 'explique_porque_1': exCtrls[0].text.trim(), 'evidencia_porque_1': getEvidenciaFinal(0),
+                                  'porque_2': pqCtrls[1].text.trim(), 'explique_porque_2': exCtrls[1].text.trim(), 'evidencia_porque_2': getEvidenciaFinal(1),
+                                  'porque_3': pqCtrls[2].text.trim(), 'explique_porque_3': exCtrls[2].text.trim(), 'evidencia_porque_3': getEvidenciaFinal(2),
+                                  'porque_4': pqCtrls[3].text.trim(), 'explique_porque_4': exCtrls[3].text.trim(), 'evidencia_porque_4': getEvidenciaFinal(3),
+                                  'porque_5': pqCtrls[4].text.trim(), 'explique_porque_5': exCtrls[4].text.trim(), 'evidencia_porque_5': getEvidenciaFinal(4),
+
+                                  'accion_1': accionesEditables.isNotEmpty ? accionesEditables[0].tipoAccion : '',
+                                  'actividad_1': accionesEditables.isNotEmpty && accionesEditables[0].tipoAccion == 'Preventiva' ? (accionesEditables[0].actividadSeleccionada ?? '') : '',
+                                  'descripcion_1': accionesEditables.isNotEmpty ? accionesEditables[0].descripcionCtrl.text : '',
+                                  'responsable_1': accionesEditables.isNotEmpty ? accionesEditables[0].responsableCtrl.text : '',
+                                  'fecha_cierre_1': (accionesEditables.isNotEmpty && accionesEditables[0].fechaCierre != null) ? DateFormat('yyyy-MM-dd').format(accionesEditables[0].fechaCierre!) : null,
+                                  'estado_accion1': accionesEditables.isNotEmpty ? accionesEditables[0].estado : '',
+
+                                  'accion_2': accionesEditables.length > 1 ? accionesEditables[1].tipoAccion : '',
+                                  'actividad_2': accionesEditables.length > 1 && accionesEditables[1].tipoAccion == 'Preventiva' ? (accionesEditables[1].actividadSeleccionada ?? '') : '',
+                                  'descripcion_2': accionesEditables.length > 1 ? accionesEditables[1].descripcionCtrl.text : '',
+                                  'responsable_2': accionesEditables.length > 1 ? accionesEditables[1].responsableCtrl.text : '',
+                                  'fecha_cierre_2': (accionesEditables.length > 1 && accionesEditables[1].fechaCierre != null) ? DateFormat('yyyy-MM-dd').format(accionesEditables[1].fechaCierre!) : null,
+                                  'estado_accion2': accionesEditables.length > 1 ? accionesEditables[1].estado : '',
+
+                                  'accion_3': accionesEditables.length > 2 ? accionesEditables[2].tipoAccion : '',
+                                  'actividad_3': accionesEditables.length > 2 && accionesEditables[2].tipoAccion == 'Preventiva' ? (accionesEditables[2].actividadSeleccionada ?? '') : '',
+                                  'descripcion_3': accionesEditables.length > 2 ? accionesEditables[2].descripcionCtrl.text : '',
+                                  'responsable_3': accionesEditables.length > 2 ? accionesEditables[2].responsableCtrl.text : '',
+                                  'fecha_cierre_3': (accionesEditables.length > 2 && accionesEditables[2].fechaCierre != null) ? DateFormat('yyyy-MM-dd').format(accionesEditables[2].fechaCierre!) : null,
+                                  'estado_accion3': accionesEditables.length > 2 ? accionesEditables[2].estado : '',
+
+                                  'accion_4': accionesEditables.length > 3 ? accionesEditables[3].tipoAccion : '',
+                                  'actividad_4': accionesEditables.length > 3 && accionesEditables[3].tipoAccion == 'Preventiva' ? (accionesEditables[3].actividadSeleccionada ?? '') : '',
+                                  'descripcion_4': accionesEditables.length > 3 ? accionesEditables[3].descripcionCtrl.text : '',
+                                  'responsable_4': accionesEditables.length > 3 ? accionesEditables[3].responsableCtrl.text : '',
+                                  'fecha_cierre_4': (accionesEditables.length > 3 && accionesEditables[3].fechaCierre != null) ? DateFormat('yyyy-MM-dd').format(accionesEditables[3].fechaCierre!) : null,
+                                  'estado_accion4': accionesEditables.length > 3 ? accionesEditables[3].estado : '',
+
+                                  'estado_revicion': 'PENDIENTE REVISION',
+                                  'estado': 'PENDIENTE',
+                                };
+
+                                try {
+                                  await ApiService.actualizar('gestion', '5why', 'id', id, payload);
+                                  if (mounted) {
+                                    Navigator.pop(ctx);
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reporte actualizado y enviado a revisión'), backgroundColor: Colors.green));
+                                    _cargarDatos();
+                                  }
+                                } catch (e) {
+                                  setModalState(() => guardando = false);
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al guardar: $e'), backgroundColor: Colors.red));
+                                }
+                              },
+                              icon: guardando ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.send_rounded, size: 16),
+                              label: Text(guardando ? 'Enviando...' : 'Guardar y Enviar a Revisión', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF36F21), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), elevation: 0),
+                            )
+                          ],
+                        ),
                       )
                     ],
                   ),
@@ -1042,7 +1064,7 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (label.isNotEmpty) ...[
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+          Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
           const SizedBox(height: 4),
         ],
         TextFormField(
@@ -1055,8 +1077,8 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: Colors.grey.shade300)),
               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: Colors.grey.shade300)),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: readOnly ? Colors.grey.shade300 : const Color(0xFF1976D2))),
-              fillColor: readOnly ? Colors.grey.shade100 : Colors.white,
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: readOnly ? Colors.grey.shade300 : const Color(0xFFF36F21))),
+              fillColor: readOnly ? const Color(0xFFF8FAFC) : Colors.white,
               filled: true
           ),
         ),
@@ -1069,7 +1091,7 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xFF1976D2), size: 16),
+          Icon(icon, color: const Color(0xFFF36F21), size: 16),
           const SizedBox(width: 8),
           Text(titulo, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
         ],
@@ -1090,9 +1112,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
     );
   }
 
-  // ==========================================
-  // EXTRACCIÓN INTELIGENTE DE IMÁGENES PARA EL PDF
-  // ==========================================
   Future<Map<int, pw.ImageProvider>> _preDecodificarImagenesParaPDF(Map<String, dynamic> row) async {
     Map<int, pw.ImageProvider> imagenesListas = {};
     for (int i = 1; i <= 5; i++) {
@@ -1187,19 +1206,33 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
     String causaRaizFormulario = (row['encontro_causa_raiz']?.toString() ?? 'NO').toUpperCase();
     String descripcionCausaRaiz = row['causa_raiz']?.toString() ?? row['causa raiz']?.toString() ?? '-';
 
-    String q1 = row['cumple_flujo_resolucion']?.toString() ?? 'PD';
-    String q2 = row['resolucion_primera_linea']?.toString() ?? 'PD';
-    String q3 = row['secuencia_tiene_sentido']?.toString() ?? 'PD';
-    String q4 = row['porques_con_evidencia']?.toString() ?? 'PD';
-    String q5 = row['encontro_causa_raiz_eval']?.toString() ?? row['encontro_causa_raiz']?.toString() ?? 'PD';
-    String q6 = row['proponen_acciones_eliminacion']?.toString() ?? 'PD';
+    String q1 = row['cumple_flujo_resolucion']?.toString() ?? '';
+    if (q1 == 'PD') q1 = '';
+    String q2 = row['resolucion_primera_linea']?.toString() ?? '';
+    if (q2 == 'PD') q2 = '';
+    String q3 = row['secuencia_tiene_sentido']?.toString() ?? '';
+    if (q3 == 'PD') q3 = '';
+    String q4 = row['porques_con_evidencia']?.toString() ?? '';
+    if (q4 == 'PD') q4 = '';
+    String q5 = row['encontro_causa_raiz_eval']?.toString() ?? row['encontro_causa_raiz']?.toString() ?? '';
+    if (q5 == 'PD') q5 = '';
+    String q6 = row['proponen_acciones_eliminacion']?.toString() ?? '';
+    if (q6 == 'PD') q6 = '';
 
     String estadoEval = row['estado']?.toString().toUpperCase() ?? 'PENDIENTE';
-    String calificacion = estadoEval == 'PENDIENTE' ? '0.0%' : (row['resultado']?.toString() ?? '0.0%');
-    String obsEval = estadoEval == 'PENDIENTE' ? 'Pendiente por revisión' : (row['observacion_evaluador']?.toString() ?? '-');
-    String resultado2 = row['resultado_2']?.toString() ?? (estadoEval == 'APTO' ? 'No aplica' : 'Pendiente por revisión');
-    String ultimaAprovacion = row['ultima_aprovacion']?.toString() ?? row['ultima aprovacion']?.toString() ?? (estadoEval == 'APTO' ? 'No aplica' : 'Pendiente por revisión');
-    String obs2 = row['Observacion 2']?.toString() ?? row['observacion_2']?.toString() ?? '-';
+
+    String displayEstadoEval = estadoEval == 'PENDIENTE' ? '' : estadoEval;
+    String calificacion = estadoEval == 'PENDIENTE' ? '' : (row['resultado']?.toString() ?? '');
+    String obsEval = estadoEval == 'PENDIENTE' ? '' : (row['observacion_evaluador']?.toString() ?? '');
+
+    String resultado2 = row['resultado_2']?.toString() ?? (estadoEval == 'APTO' ? 'No aplica' : '');
+    if (resultado2 == 'Pendiente por revisión') resultado2 = '';
+
+    String ultimaAprovacion = row['ultima_aprovacion']?.toString() ?? row['ultima aprovacion']?.toString() ?? (estadoEval == 'APTO' ? 'No aplica' : '');
+    if (ultimaAprovacion == 'Pendiente por revisión') ultimaAprovacion = '';
+
+    String obs2 = row['Observacion 2']?.toString() ?? row['observacion_2']?.toString() ?? '';
+    if (obs2 == '-') obs2 = '';
 
     return [
       pw.Table(
@@ -1352,9 +1385,9 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
             children: [
               pw.TableRow(children: [
                 celdaLabel('Calificación Obtenida:'),
-                celdaLabel(calificacion, colorTexto: estadoEval == 'APTO' ? PdfColors.green800 : (estadoEval == 'NO APTO' ? PdfColors.red800 : PdfColors.orange800)),
+                celdaLabel(calificacion, colorTexto: estadoEval == 'APTO' ? PdfColors.green800 : (estadoEval == 'NO APTO' ? PdfColors.red800 : PdfColors.black)),
                 celdaLabel('Estado Final:'),
-                celdaLabel(estadoEval, colorTexto: estadoEval == 'APTO' ? PdfColors.green800 : (estadoEval == 'NO APTO' ? PdfColors.red800 : PdfColors.orange800)),
+                celdaLabel(displayEstadoEval, colorTexto: estadoEval == 'APTO' ? PdfColors.green800 : (estadoEval == 'NO APTO' ? PdfColors.red800 : PdfColors.black)),
               ])
             ]
         ),
@@ -1388,7 +1421,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
     ];
   }
 
-  // --- PDF ÚNICO ---
   Future<void> _generarYDescargarPDF(Map<String, dynamic> row) async {
     setState(() { _idGenerandoPdf = row['id'].toString(); });
     await Future.delayed(const Duration(milliseconds: 100));
@@ -1421,7 +1453,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
     }
   }
 
-  // --- PDF MÚLTIPLE MASIVO ---
   Future<void> _descargarMultiplesPDFs() async {
     if (_seleccionados.isEmpty) return;
     setState(() { _generandoMultiplesPdf = true; });
@@ -1455,39 +1486,73 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
     }
   }
 
-  // ==========================================
-  // CONSTRUCCIÓN DE LA VISTA PRINCIPAL
-  // ==========================================
   @override
   Widget build(BuildContext context) {
-    if (_cargando) return const Scaffold(backgroundColor: Color(0xFFF4F6F9), body: Center(child: CircularProgressIndicator(color: Color(0xFF0A2540))));
+    if (_cargando) {
+      return Scaffold(
+        backgroundColor: _colorBackground,
+        body: Center(child: CircularProgressIndicator(color: _colorPrincipal)),
+      );
+    }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
+      backgroundColor: _colorBackground,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A2540),
-        leading: IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: widget.onToggleSidebar),
+        backgroundColor: _colorEncabezados,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(icon: const Icon(Icons.menu), onPressed: widget.onToggleSidebar),
         title: const Text('Historial y Analítica 5 Why', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(icon: const Icon(Icons.refresh, color: Colors.white), onPressed: _cargarDatos)
         ],
       ),
       body: _mensajeError != null
-          ? Center(child: Text(_mensajeError!, style: const TextStyle(color: Colors.red)))
+          ? _buildBannerError()
           : SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildBarraFiltros(),
             const SizedBox(height: 20),
+
             _buildDashboardTarjetas(),
             const SizedBox(height: 20),
-            _buildTablasResumen(),
-            const SizedBox(height: 24),
-            _buildTablaDetalle(),
+
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _buildTablaTop('Análisis por Área (Top 10)', 'ÁREA', _conteoAreas)),
+                const SizedBox(width: 16),
+                Expanded(child: _buildTablaTop('Análisis por PI (Top 10)', 'PI AFECTADO', _conteoPI)),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            _buildTablaDetalleCompleto(),
+            const SizedBox(height: 40),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBannerError() {
+    return Container(
+      width: double.infinity, margin: const EdgeInsets.all(20), padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.amber.shade600)),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: Colors.amber.shade900, size: 20),
+          const SizedBox(width: 10),
+          Expanded(child: Text(_mensajeError!, style: TextStyle(color: Colors.amber.shade900, fontSize: 12, fontWeight: FontWeight.w600))),
+          ElevatedButton(
+            onPressed: _cargarDatos,
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.amber.shade600, foregroundColor: Colors.white, elevation: 0),
+            child: const Text('REINTENTAR', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+          )
+        ],
       ),
     );
   }
@@ -1496,72 +1561,116 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
     bool hayFiltrosActivos = _fechaDesde != null || _fechaHasta != null || _filtroPI != 'Todos' || _filtroArea != 'Todas' || _busquedaTexto.isNotEmpty;
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: _sombraCards,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.filter_list_rounded, size: 18, color: Color(0xFF1976D2)),
-                  SizedBox(width: 8),
-                  Text('Filtros y Búsqueda', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
+                  Icon(Icons.filter_alt_rounded, color: _colorPrincipal, size: 18),
+                  const SizedBox(width: 8),
+                  Text('Filtros y Búsqueda', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _colorTextoOscuro)),
                 ],
               ),
               if (hayFiltrosActivos)
                 InkWell(
                   onTap: _limpiarFiltros,
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Text('🧹 Limpiar Filtros', style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold)),
-                  ),
+                  child: const Text('🧹 Limpiar Filtros', style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold)),
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          const Divider(height: 24),
           Wrap(
-            spacing: 12, runSpacing: 12, crossAxisAlignment: WrapCrossAlignment.end,
+            spacing: 16,
+            runSpacing: 16,
+            crossAxisAlignment: WrapCrossAlignment.end,
             children: [
-              _buildFiltroFecha('Fecha Desde', _fechaDesde, (fecha) => setState(() { _fechaDesde = fecha; _aplicarFiltros(); })),
-              _buildFiltroFecha('Fecha Hasta', _fechaHasta, (fecha) => setState(() { _fechaHasta = fecha; _aplicarFiltros(); })),
-              _buildFiltroDropdown('Área', _listaFiltroArea, _filtroArea, (val) => setState(() { _filtroArea = val!; _aplicarFiltros(); })),
-              _buildFiltroDropdown('PI Afectado', _listaFiltroPI, _filtroPI, (val) => setState(() { _filtroPI = val!; _aplicarFiltros(); })),
+              _buildSelectorFecha('DESDE', _fechaDesde ?? DateTime.now(), (d) => setState(() => _fechaDesde = d)),
+              _buildSelectorFecha('HASTA', _fechaHasta ?? DateTime.now(), (d) => setState(() => _fechaHasta = d)),
+
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Buscar (Evento, OPM, Disparador)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-                  const SizedBox(height: 4),
+                  const Text('ÁREA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                  const SizedBox(height: 6),
+                  Container(
+                    height: 38, width: 160, padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: Colors.white),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _filtroArea, isExpanded: true, style: const TextStyle(fontSize: 12, color: Color(0xFF334155), fontWeight: FontWeight.w500),
+                        icon: const Icon(Icons.arrow_drop_down, size: 16, color: Color(0xFF94A3B8)),
+                        items: _listaFiltroArea.map((e) => DropdownMenuItem(value: e, child: Text(e, overflow: TextOverflow.ellipsis))).toList(),
+                        onChanged: (val) => setState(() { _filtroArea = val!; _aplicarFiltros(); }),
+                      ),
+                    ),
+                  )
+                ],
+              ),
+
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('PI AFECTADO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                  const SizedBox(height: 6),
+                  Container(
+                    height: 38, width: 160, padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: Colors.white),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _filtroPI, isExpanded: true, style: const TextStyle(fontSize: 12, color: Color(0xFF334155), fontWeight: FontWeight.w500),
+                        icon: const Icon(Icons.arrow_drop_down, size: 16, color: Color(0xFF94A3B8)),
+                        items: _listaFiltroPI.map((e) => DropdownMenuItem(value: e, child: Text(e, overflow: TextOverflow.ellipsis))).toList(),
+                        onChanged: (val) => setState(() { _filtroPI = val!; _aplicarFiltros(); }),
+                      ),
+                    ),
+                  )
+                ],
+              ),
+
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('BUSCAR (EVENTO, OPM, DISP)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                  const SizedBox(height: 6),
                   SizedBox(
-                    width: 220, height: 35,
+                    width: 240, height: 38,
                     child: TextField(
                       controller: _buscarCtrl,
                       style: const TextStyle(fontSize: 12),
                       decoration: InputDecoration(
-                        hintText: 'Escriba aquí...',
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide(color: Colors.grey.shade300)),
+                        hintText: 'Término de búsqueda...',
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: Colors.grey.shade300)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: Colors.grey.shade300)),
                       ),
                       onChanged: (v) { _busquedaTexto = v; _aplicarFiltros(); },
                     ),
                   ),
                 ],
               ),
-              Container(
-                margin: const EdgeInsets.only(bottom: 2),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(color: const Color(0xFFFFF7ED), borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.orange.shade200)),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.warning_rounded, color: Colors.orange, size: 14),
-                    const SizedBox(width: 6),
-                    Text('Resultados: ${_registrosFiltrados.length}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.orange.shade900)),
-                  ],
+
+              ElevatedButton.icon(
+                onPressed: _aplicarFiltros,
+                icon: const Icon(Icons.filter_alt_rounded, size: 16),
+                label: const Text('FILTRAR', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _colorPrincipal,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
                 ),
-              )
+              ),
             ],
           ),
         ],
@@ -1569,454 +1678,449 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
     );
   }
 
-  Widget _buildFiltroFecha(String label, DateTime? fechaActual, Function(DateTime?) onSelect) {
+  Widget _buildSelectorFecha(String label, DateTime fecha, Function(DateTime) onSelect) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+        const SizedBox(height: 6),
         InkWell(
           onTap: () async {
-            DateTime? picked = await showDatePicker(context: context, initialDate: fechaActual ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2101));
-            if (picked != null) onSelect(picked);
+            final p = await showDatePicker(context: context, initialDate: fecha, firstDate: DateTime(2020), lastDate: DateTime(2100));
+            if (p != null) onSelect(p);
           },
           child: Container(
-            width: 140, height: 35,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4), color: Colors.white),
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(6),
+            ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(fechaActual != null ? DateFormat('yyyy-MM-dd').format(fechaActual) : 'DD/MM/AAAA', style: TextStyle(fontSize: 12, color: fechaActual != null ? Colors.black87 : Colors.grey)),
-                const Icon(Icons.calendar_today_rounded, size: 14, color: Colors.grey),
+                Text('${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                const SizedBox(width: 8),
+                const Icon(Icons.calendar_today_outlined, size: 14, color: Color(0xFF94A3B8)),
               ],
             ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFiltroDropdown(String label, List<String> opciones, String valor, Function(String?) onSelect) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-        const SizedBox(height: 4),
-        Container(
-          width: 160, height: 35,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4), color: Colors.white),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: opciones.contains(valor) ? valor : opciones.first,
-              isExpanded: true,
-              style: const TextStyle(fontSize: 12, color: Colors.black87),
-              icon: const Icon(Icons.keyboard_arrow_down, size: 16),
-              items: opciones.map((e) => DropdownMenuItem(value: e, child: Text(e, overflow: TextOverflow.ellipsis))).toList(),
-              onChanged: onSelect,
-            ),
-          ),
-        ),
+        )
       ],
     );
   }
 
   Widget _buildDashboardTarjetas() {
-    return LayoutBuilder(builder: (context, constraints) {
-      double w = constraints.maxWidth;
-      int crossAxisCount = w > 800 ? 3 : (w > 500 ? 2 : 1);
-      return GridView.count(
-        crossAxisCount: crossAxisCount, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 2.5,
-        children: [
-          _kpiCard('Total Análisis', '$_totalReportes', Icons.assignment_rounded, Colors.blue),
-          _kpiCard('Con Causa Raíz', '$_conCausaRaiz', Icons.check_circle_rounded, Colors.green),
-          _kpiCard('Sin Causa Raíz', '$_sinCausaRaiz', Icons.warning_rounded, Colors.orange),
-        ],
-      );
-    });
+    return Row(
+      children: [
+        Expanded(child: _buildKPICard('TOTAL ANÁLISIS', '$_totalReportes', Icons.analytics_rounded, _colorPrincipal)),
+        const SizedBox(width: 16),
+        Expanded(child: _buildKPICard('CON CAUSA RAÍZ', '$_conCausaRaiz', Icons.fact_check_rounded, const Color(0xFF10B981))),
+        const SizedBox(width: 16),
+        Expanded(child: _buildKPICard('SIN CAUSA RAÍZ', '$_sinCausaRaiz', Icons.warning_amber_rounded, const Color(0xFFEF4444))),
+      ],
+    );
   }
 
-  Widget _kpiCard(String titulo, String valor, IconData icon, Color color) {
+  Widget _buildKPICard(String titulo, String valor, IconData icono, Color colorIcono) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: _sombraCards,
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(titulo, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-              const SizedBox(height: 8),
-              Text(valor, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFF0A2540))),
-            ],
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colorIcono.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icono, color: colorIcono, size: 28),
           ),
-          Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: Icon(icon, color: color, size: 24)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(titulo, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                const SizedBox(height: 4),
+                Text(valor, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Color(0xFF1E293B))),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildTablasResumen() {
-    bool isMobile = MediaQuery.of(context).size.width < 800;
-    if (isMobile) {
-      return Column(
-        children: [
-          _buildTablaTop('Análisis por Área (Top 10)', 'ÁREA', _conteoAreas),
-          const SizedBox(height: 16),
-          _buildTablaTop('Análisis por PI (Top 10)', 'PI AFECTADO', _conteoPI),
-        ],
-      );
-    } else {
-      return Row(
+  Widget _buildCardBase({required String titulo, Widget? actionRight, required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: _sombraCards,
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: _buildTablaTop('Análisis por Área (Top 10)', 'ÁREA', _conteoAreas)),
-          const SizedBox(width: 16),
-          Expanded(child: _buildTablaTop('Análisis por PI (Top 10)', 'PI AFECTADO', _conteoPI)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(child: Text(titulo, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)))),
+              if (actionRight != null) actionRight,
+            ],
+          ),
+          const SizedBox(height: 16),
+          child,
         ],
-      );
-    }
+      ),
+    );
   }
 
   Widget _buildTablaTop(String titulo, String headerCol1, Map<String, int> datos) {
     var top10 = datos.entries.take(10).toList();
     int totalTop = top10.fold(0, (sum, e) => sum + e.value);
 
-    return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(titulo, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0A2540))),
-          ),
-          Table(
-            border: TableBorder(horizontalInside: BorderSide(color: Colors.grey.shade100)),
-            columnWidths: const { 0: FlexColumnWidth(3), 1: FlexColumnWidth(1), 2: FlexColumnWidth(1) },
+    return _buildCardBase(
+        titulo: titulo,
+        child: Container(
+          height: 250,
+          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(8)),
+          child: Column(
             children: [
-              TableRow(
-                  decoration: const BoxDecoration(color: Color(0xFF1E293B)),
+              Container(
+                decoration: BoxDecoration(color: _colorEncabezados, borderRadius: const BorderRadius.vertical(top: Radius.circular(8))),
+                child: Row(
                   children: [
-                    Padding(padding: const EdgeInsets.all(10), child: Text(headerCol1, style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold))),
-                    const Padding(padding: EdgeInsets.all(10), child: Text('TOTAL', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                    const Padding(padding: EdgeInsets.all(10), child: Text('%', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                  ]
+                    Expanded(flex: 3, child: Padding(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text(headerCol1, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)))),
+                    const Expanded(flex: 1, child: Padding(padding: EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text('TOTAL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5), textAlign: TextAlign.center))),
+                    const Expanded(flex: 1, child: Padding(padding: EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text('%', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5), textAlign: TextAlign.center))),
+                  ],
+                ),
               ),
-              ...top10.map((e) {
-                double pct = _totalReportes == 0 ? 0 : (e.value / _totalReportes) * 100;
-                return TableRow(
-                    children: [
-                      Padding(padding: const EdgeInsets.all(10), child: Text(e.key, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87))),
-                      Padding(padding: const EdgeInsets.all(10), child: Text('${e.value}', style: const TextStyle(fontSize: 11, color: Colors.black87), textAlign: TextAlign.center)),
-                      Padding(padding: const EdgeInsets.all(10), child: Text('${pct.toStringAsFixed(1)}%', style: const TextStyle(fontSize: 11, color: Colors.black54), textAlign: TextAlign.center)),
-                    ]
-                );
-              }),
-              TableRow(
-                  decoration: const BoxDecoration(color: Color(0xFFE2E8F0)),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: top10.length,
+                  itemBuilder: (ctx, i) {
+                    var e = top10[i];
+                    double pct = _totalReportes == 0 ? 0 : (e.value / _totalReportes) * 100;
+                    Color rowColor = i % 2 == 0 ? Colors.white : const Color(0xFFF8FAFC);
+                    return Container(
+                      decoration: BoxDecoration(color: rowColor, border: const Border(bottom: BorderSide(color: Color(0xFFF1F5F9)))),
+                      child: Row(
+                        children: [
+                          Expanded(flex: 3, child: Padding(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text(e.key, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))))),
+                          Expanded(flex: 1, child: Padding(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text('${e.value}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87), textAlign: TextAlign.center))),
+                          Expanded(flex: 1, child: Padding(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text('${pct.toStringAsFixed(1)}%', style: const TextStyle(fontSize: 11, color: Colors.black54), textAlign: TextAlign.center))),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Container(
+                decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)), border: Border(top: BorderSide(color: Colors.orange.shade200))),
+                child: Row(
                   children: [
-                    const Padding(padding: EdgeInsets.all(10), child: Text('TOTALES MOSTRADOS', style: TextStyle(fontSize: 11, color: Color(0xFF1E293B), fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                    Padding(padding: const EdgeInsets.all(10), child: Text('$totalTop', style: const TextStyle(fontSize: 11, color: Color(0xFF1E293B), fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                    Padding(padding: const EdgeInsets.all(10), child: Text(_totalReportes == 0 ? '0%' : '${((totalTop / _totalReportes) * 100).toStringAsFixed(1)}%', style: const TextStyle(fontSize: 11, color: Color(0xFF1E293B), fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                  ]
+                    const Expanded(flex: 3, child: Padding(padding: EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text('TOTALES MOSTRADOS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.black87)))),
+                    Expanded(flex: 1, child: Padding(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text('$totalTop', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.black87), textAlign: TextAlign.center))),
+                    Expanded(flex: 1, child: Padding(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text(_totalReportes == 0 ? '0%' : '${((totalTop / _totalReportes) * 100).toStringAsFixed(1)}%', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.black87), textAlign: TextAlign.center))),
+                  ],
+                ),
               )
             ],
-          )
-        ],
-      ),
+          ),
+        )
     );
   }
 
-  Widget _buildTablaDetalle() {
+  Widget _buildTablaDetalleCompleto() {
     int inicio = (_paginaActual - 1) * _registrosPorPagina;
     int fin = min(inicio + _registrosPorPagina, _registrosFiltrados.length);
     List<Map<String, dynamic>> paginaLista = _registrosFiltrados.isEmpty ? [] : _registrosFiltrados.sublist(inicio, fin);
     int totalPaginas = max(1, (_registrosFiltrados.length / _registrosPorPagina).ceil());
-
     bool todosSeleccionados = paginaLista.isNotEmpty && paginaLista.every((r) => _seleccionados.contains(r['id'].toString()));
 
-    return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    const Text('Mostrar ', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    Container(
-                      height: 30, padding: const EdgeInsets.symmetric(horizontal: 8),
-                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4)),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
-                          value: _registrosPorPagina,
-                          style: const TextStyle(fontSize: 12, color: Colors.black87),
-                          icon: const Icon(Icons.arrow_drop_down, size: 16),
-                          items: [10, 25, 50, 100].map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
-                          onChanged: (v) => setState(() { _registrosPorPagina = v!; _paginaActual = 1; }),
-                        ),
-                      ),
-                    ),
-                    const Text(' registros', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  ],
+    List<Map<String, dynamic>> columnas = [
+      {'key': 'sel', 'label': '', 'w': 40.0},
+      {'key': 'fecha', 'label': 'FECHA', 'w': 80.0},
+      {'key': 'area', 'label': 'ÁREA', 'w': 100.0},
+      {'key': 'pi', 'label': 'PI AFECTADO', 'w': 130.0},
+      {'key': 'disp', 'label': 'DISPARADOR', 'w': 220.0},
+      {'key': 'part', 'label': 'PARTICIPANTES', 'w': 160.0},
+      {'key': 'estado', 'label': 'ESTADO', 'w': 100.0},
+      {'key': 'obs1', 'label': 'OBSERVACIÓN 1', 'w': 180.0},
+      {'key': 'obs2', 'label': 'OBSERVACIÓN 2', 'w': 180.0},
+      {'key': 'res', 'label': 'RES. FINAL', 'w': 100.0},
+      {'key': 'gest', 'label': 'GESTIÓN', 'w': 160.0},
+    ];
+
+    double totalWidth = columnas.fold<double>(0.0, (p, c) => p + (c['w'] as double));
+
+    return _buildCardBase(
+        titulo: 'Detalle de Reportes 5 Why',
+        actionRight: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (_seleccionados.isNotEmpty)
+                ElevatedButton.icon(
+                  onPressed: _generandoMultiplesPdf ? null : _descargarMultiplesPDFs,
+                  icon: _generandoMultiplesPdf
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.picture_as_pdf_rounded, size: 14),
+                  label: Text('DESCARGAR SELECC. (${_seleccionados.length})', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _colorPrincipal,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
                 ),
-                Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      if (_seleccionados.isNotEmpty)
-                        ElevatedButton.icon(
-                          onPressed: _generandoMultiplesPdf ? null : _descargarMultiplesPDFs,
-                          icon: _generandoMultiplesPdf
-                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Icon(Icons.picture_as_pdf_rounded, size: 16),
-                          label: Text('Descargar Seleccionados (${_seleccionados.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFB300), foregroundColor: Colors.black87, elevation: 0, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
-                        ),
-                      ElevatedButton.icon(
-                        onPressed: _descargarExcel,
-                        icon: const Icon(Icons.download_rounded, size: 16),
-                        label: const Text('Descargar Excel', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4CAF50), foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
-                      )
-                    ]
-                )
+              ElevatedButton.icon(
+                onPressed: _descargarExcel,
+                icon: const Icon(Icons.table_view_rounded, size: 14),
+                label: const Text('EXCEL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+              ),
+            ]
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text('Mostrar ', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                Container(
+                  height: 30, padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4)),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: _registrosPorPagina,
+                      style: const TextStyle(fontSize: 11, color: Colors.black87, fontWeight: FontWeight.bold),
+                      icon: const Icon(Icons.arrow_drop_down, size: 16),
+                      items: [10, 25, 50, 100].map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
+                      onChanged: (v) => setState(() { _registrosPorPagina = v!; _paginaActual = 1; }),
+                    ),
+                  ),
+                ),
+                const Text(' registros', style: TextStyle(fontSize: 11, color: Colors.grey)),
               ],
             ),
-          ),
-          const Divider(height: 1),
-          Scrollbar(
-            controller: _tablaScrollController,
-            thumbVisibility: true,
-            child: SingleChildScrollView(
-              controller: _tablaScrollController,
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 1600),
-                child: Table(
-                  border: TableBorder(horizontalInside: BorderSide(color: Colors.grey.shade100)),
-                  columnWidths: const {
-                    0: FixedColumnWidth(40),
-                    1: FixedColumnWidth(80),
-                    2: FixedColumnWidth(100),
-                    3: FixedColumnWidth(100),
-                    4: FlexColumnWidth(2.5),
-                    5: FlexColumnWidth(1.5),
-                    6: FixedColumnWidth(90),
-                    7: FlexColumnWidth(2),
-                    8: FlexColumnWidth(2),
-                    9: FixedColumnWidth(100),
-                    10: FixedColumnWidth(150)
-                  },
-                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                  children: [
-                    TableRow(
-                        decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
+            const SizedBox(height: 14),
+
+            Container(
+              decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(8)),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Scrollbar(
+                  controller: _tablaScrollController,
+                  thumbVisibility: true,
+                  trackVisibility: true,
+                  thickness: 8,
+                  radius: const Radius.circular(8),
+                  child: SingleChildScrollView(
+                    controller: _tablaScrollController,
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: SizedBox(
+                      width: totalWidth,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Checkbox(
-                              value: todosSeleccionados,
-                              onChanged: paginaLista.isEmpty ? null : (v) => _toggleSeleccionarTodos(paginaLista),
-                              activeColor: const Color(0xFF1976D2),
+                          Container(
+                            decoration: BoxDecoration(color: _colorEncabezados),
+                            child: Row(
+                              children: columnas.map((c) {
+                                if (c['key'] == 'sel') {
+                                  return Container(
+                                    width: c['w'] as double,
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    child: Theme(
+                                      data: ThemeData(unselectedWidgetColor: Colors.white70),
+                                      child: Checkbox(
+                                        value: todosSeleccionados,
+                                        onChanged: paginaLista.isEmpty ? null : (v) => _toggleSeleccionarTodos(paginaLista),
+                                        activeColor: _colorPrincipal,
+                                        checkColor: Colors.white,
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return _headerCell(c['label'] as String, width: c['w'] as double);
+                              }).toList(),
                             ),
                           ),
-                          _headerCell('Fecha Evento'), _headerCell('Área'), _headerCell('PI Afectado'), _headerCell('Disparador'), _headerCell('Participantes'), _headerCell('Estado', centrar: true), _headerCell('Observación 1'), _headerCell('Observación 2'), _headerCell('Res. Final', centrar: true), _headerCell('Gestión', centrar: true),
-                        ]
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: paginaLista.length,
+                            itemBuilder: (context, i) {
+                              var r = paginaLista[i];
+                              String idRow = r['id'].toString();
+
+                              String rawF = r['fecha']?.toString() ?? '';
+                              String fecha = rawF.isNotEmpty ? rawF.split('T')[0].split(' ')[0] : 'N/A';
+
+                              String estadoOriginal = (r['estado']?.toString() ?? 'PENDIENTE').toUpperCase();
+                              String ultAp = (r['ultima aprovacion']?.toString() ?? r['ultima_aprovacion']?.toString() ?? '').toUpperCase();
+                              String obs1 = r['observacion_evaluador']?.toString() ?? '-';
+                              if (obs1.trim().isEmpty || obs1 == 'NULL') obs1 = '-';
+                              String obs2 = r['Observacion 2']?.toString() ?? r['observacion_2']?.toString() ?? '-';
+                              if (obs2.trim().isEmpty || obs2 == 'NULL') obs2 = '-';
+
+                              String estadoMostrar = estadoOriginal;
+                              if (estadoOriginal != 'PENDIENTE' && ultAp.isNotEmpty && ultAp != 'NULL' && ultAp != 'NO APLICA' && ultAp != 'PENDIENTE POR REVISIÓN') {
+                                estadoMostrar = ultAp;
+                              }
+
+                              bool bloqueado = (estadoMostrar == 'APTO' || estadoMostrar == 'APROBADO');
+
+                              Color colorEst = Colors.orange.shade800;
+                              if (estadoMostrar == 'APTO' || estadoMostrar == 'APROBADO') colorEst = Colors.green;
+                              else if (estadoMostrar == 'NO APTO' || estadoMostrar == 'NO APROBADO') colorEst = Colors.red;
+
+                              String resFinal = r['ultima aprovacion']?.toString() ?? r['ultima_aprovacion']?.toString() ?? '-';
+                              if (resFinal.trim().isEmpty || resFinal == 'NULL') resFinal = '-';
+
+                              Color colorResFinal = Colors.black87;
+                              if (resFinal == 'APROBADO' || resFinal == 'APTO') colorResFinal = Colors.green;
+                              if (resFinal == 'NO APROBADO' || resFinal == 'NO APTO') colorResFinal = Colors.red;
+                              if (resFinal == 'VOLVER A REVISAR') colorResFinal = Colors.orange.shade800;
+
+                              Color rowColor = i % 2 == 0 ? Colors.white : const Color(0xFFF8FAFC);
+
+                              return Container(
+                                decoration: BoxDecoration(color: rowColor, border: const Border(bottom: BorderSide(color: Color(0xFFE2E8F0)))),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: columnas[0]['w'] as double,
+                                      padding: const EdgeInsets.symmetric(vertical: 4),
+                                      child: Checkbox(
+                                        value: _seleccionados.contains(idRow),
+                                        onChanged: (v) => _toggleSeleccion(idRow),
+                                        activeColor: _colorPrincipal,
+                                      ),
+                                    ),
+                                    _buildFixedCell(columnas[1]['w'] as double, fecha),
+                                    _buildFixedCell(columnas[2]['w'] as double, r['area']?.toString() ?? 'N/A'),
+                                    _buildFixedCell(columnas[3]['w'] as double, r['pi']?.toString() ?? 'N/A', isBold: true, color: _colorPrincipal),
+                                    _buildFixedCell(columnas[4]['w'] as double, r['valor_disparador_alcanzado']?.toString() ?? 'N/A'),
+                                    _buildFixedCell(columnas[5]['w'] as double, r['participantes']?.toString() ?? 'N/A'),
+                                    Container(
+                                      width: columnas[6]['w'] as double,
+                                      padding: const EdgeInsets.all(8.0),
+                                      alignment: Alignment.center,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                        decoration: BoxDecoration(color: colorEst.withOpacity(0.1), border: Border.all(color: colorEst), borderRadius: BorderRadius.circular(4)),
+                                        child: Text(estadoMostrar, textAlign: TextAlign.center, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: colorEst)),
+                                      ),
+                                    ),
+                                    _buildFixedCell(columnas[7]['w'] as double, obs1, color: Colors.black54),
+                                    _buildFixedCell(columnas[8]['w'] as double, obs2, color: Colors.black54),
+                                    Container(
+                                      width: columnas[9]['w'] as double,
+                                      padding: const EdgeInsets.all(8.0),
+                                      alignment: Alignment.center,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                        decoration: BoxDecoration(color: colorResFinal != Colors.black87 ? colorResFinal.withOpacity(0.1) : Colors.grey.shade100, border: Border.all(color: colorResFinal != Colors.black87 ? colorResFinal : Colors.grey.shade300), borderRadius: BorderRadius.circular(4)),
+                                        child: Text(resFinal, textAlign: TextAlign.center, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: colorResFinal != Colors.black87 ? colorResFinal : Colors.black87)),
+                                      ),
+                                    ),
+                                    Container(
+                                      width: columnas[10]['w'] as double,
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                      child: Wrap(
+                                        spacing: 6, runSpacing: 4,
+                                        alignment: WrapAlignment.center,
+                                        crossAxisAlignment: WrapCrossAlignment.center,
+                                        children: [
+                                          ElevatedButton.icon(
+                                            onPressed: () => _abrirModalEdicion(r, bloqueado),
+                                            icon: Icon(bloqueado ? Icons.visibility : Icons.edit, size: 12),
+                                            label: Text(bloqueado ? 'Detalle' : 'Editar', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                                            style: ElevatedButton.styleFrom(backgroundColor: bloqueado ? Colors.grey.shade300 : _colorPrincipal, foregroundColor: bloqueado ? Colors.black87 : Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0), minimumSize: const Size(0, 30), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
+                                          ),
+                                          _idGenerandoPdf == idRow
+                                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.redAccent))
+                                              : IconButton(
+                                            icon: const Icon(Icons.picture_as_pdf_rounded, color: Colors.redAccent, size: 18),
+                                            tooltip: 'Descargar PDF',
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                            onPressed: () => _generarYDescargarPDF(r),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                     ),
-                    ...paginaLista.map((row) {
-                      String idRow = row['id'].toString();
-
-                      String estadoOriginal = (row['estado']?.toString() ?? 'PENDIENTE').toUpperCase();
-                      String ultAp = (row['ultima aprovacion']?.toString() ?? row['ultima_aprovacion']?.toString() ?? '').toUpperCase();
-
-                      String obs1 = row['observacion_evaluador']?.toString() ?? '-';
-                      if (obs1.trim().isEmpty || obs1 == 'NULL') obs1 = '-';
-
-                      String obs2 = row['Observacion 2']?.toString() ?? row['observacion_2']?.toString() ?? '-';
-                      if (obs2.trim().isEmpty || obs2 == 'NULL') obs2 = '-';
-
-                      String estadoMostrar = estadoOriginal;
-                      if (estadoOriginal != 'PENDIENTE' && ultAp.isNotEmpty && ultAp != 'NULL' && ultAp != 'NO APLICA' && ultAp != 'PENDIENTE POR REVISIÓN') {
-                        estadoMostrar = ultAp;
-                      }
-
-                      bool bloqueado = (estadoMostrar == 'APTO' || estadoMostrar == 'APROBADO');
-
-                      Color colorEst;
-                      if (estadoMostrar == 'APTO' || estadoMostrar == 'APROBADO') colorEst = Colors.green;
-                      else if (estadoMostrar == 'NO APTO' || estadoMostrar == 'NO APROBADO') colorEst = Colors.red;
-                      else if (estadoMostrar == 'VOLVER A REVISAR') colorEst = Colors.orange.shade800;
-                      else colorEst = Colors.orange;
-
-                      String resFinal = row['ultima aprovacion']?.toString() ?? row['ultima_aprovacion']?.toString() ?? '-';
-                      if (resFinal.trim().isEmpty || resFinal == 'NULL') resFinal = '-';
-
-                      Color colorResFinal = Colors.black87;
-                      if (resFinal == 'APROBADO' || resFinal == 'APTO') colorResFinal = Colors.green;
-                      if (resFinal == 'NO APROBADO' || resFinal == 'NO APTO') colorResFinal = Colors.red;
-                      if (resFinal == 'VOLVER A REVISAR') colorResFinal = Colors.orange.shade800;
-
-                      return TableRow(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Checkbox(
-                                value: _seleccionados.contains(idRow),
-                                onChanged: (v) => _toggleSeleccion(idRow),
-                                activeColor: const Color(0xFF1976D2),
-                              ),
-                            ),
-                            _dataCell(row['fecha']?.toString().split('T')[0] ?? '-'),
-                            _dataCell(row['area']?.toString() ?? '-'),
-                            _dataCell(row['pi']?.toString() ?? '-', isBold: true),
-                            _dataCell(row['valor_disparador_alcanzado']?.toString() ?? '-'),
-                            _dataCell(row['participantes']?.toString() ?? '-'),
-                            Padding(
-                              padding: const EdgeInsets.all(4.0),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                                decoration: BoxDecoration(color: colorEst.withOpacity(0.1), border: Border.all(color: colorEst), borderRadius: BorderRadius.circular(4)),
-                                child: Text(estadoMostrar, textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: colorEst)),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-                              child: Text(obs1.trim(), style: const TextStyle(fontSize: 10, fontStyle: FontStyle.italic, color: Colors.black54), maxLines: 2, overflow: TextOverflow.ellipsis),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-                              child: Text(obs2.trim(), style: const TextStyle(fontSize: 10, fontStyle: FontStyle.italic, color: Colors.black54), maxLines: 2, overflow: TextOverflow.ellipsis),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(4.0),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                                decoration: BoxDecoration(color: colorResFinal != Colors.black87 ? colorResFinal.withOpacity(0.1) : Colors.grey.shade100, border: Border.all(color: colorResFinal != Colors.black87 ? colorResFinal : Colors.grey.shade300), borderRadius: BorderRadius.circular(4)),
-                                child: Text(resFinal, textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: colorResFinal != Colors.black87 ? colorResFinal : Colors.black87)),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                              child: Wrap(
-                                alignment: WrapAlignment.center,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                spacing: 4,
-                                runSpacing: 4,
-                                children: [
-                                  ElevatedButton.icon(
-                                    onPressed: () => _abrirModalEdicion(row, bloqueado),
-                                    icon: Icon(bloqueado ? Icons.visibility : Icons.edit, size: 14),
-                                    label: Text(bloqueado ? 'Ver Detalle' : 'Editar', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                                    style: ElevatedButton.styleFrom(backgroundColor: bloqueado ? Colors.grey.shade300 : const Color(0xFFFFB300), foregroundColor: Colors.black87, elevation: 0, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0), minimumSize: const Size(0, 30), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
-                                  ),
-                                  _idGenerandoPdf == idRow
-                                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.redAccent))
-                                      : IconButton(
-                                    icon: const Icon(Icons.picture_as_pdf_rounded, color: Colors.redAccent, size: 20),
-                                    tooltip: 'Descargar PDF',
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                    onPressed: () => _generarYDescargarPDF(row),
-                                  ),
-                                ],
-                              ),
-                            )
-                          ]
-                      );
-                    })
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Mostrando ${paginaLista.isEmpty ? 0 : inicio + 1} a $fin de ${_registrosFiltrados.length} reportes', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                Row(
-                  children: [
-                    InkWell(onTap: _paginaActual > 1 ? () => setState(() => _paginaActual--) : null, child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4)), child: const Text('Anterior', style: TextStyle(fontSize: 11, color: Colors.blue)))),
-                    const SizedBox(width: 4),
-                    Text(' $_paginaActual / $totalPaginas ', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black54)),
-                    const SizedBox(width: 4),
-                    InkWell(onTap: _paginaActual < totalPaginas ? () => setState(() => _paginaActual++) : null, child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4)), child: const Text('Siguiente', style: TextStyle(fontSize: 11, color: Colors.blue)))),
-                  ],
-                )
-              ],
-            ),
-          )
-        ],
-      ),
+            Container(
+              padding: const EdgeInsets.only(top: 16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Mostrando ${paginaLista.isEmpty ? 0 : inicio + 1} a $fin de ${_registrosFiltrados.length} reportes', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  Row(
+                    children: [
+                      InkWell(onTap: _paginaActual > 1 ? () => setState(() => _paginaActual--) : null, child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4), color: Colors.white), child: const Text('Anterior', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87)))),
+                      const SizedBox(width: 8),
+                      Text(' $_paginaActual / $totalPaginas ', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black54)),
+                      const SizedBox(width: 8),
+                      InkWell(onTap: _paginaActual < totalPaginas ? () => setState(() => _paginaActual++) : null, child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4), color: Colors.white), child: const Text('Siguiente', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87)))),
+                    ],
+                  )
+                ],
+              ),
+            )
+          ],
+        )
     );
   }
 
-  Widget _headerCell(String text, {bool centrar = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 8.0),
-      child: Text(text, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)), textAlign: centrar ? TextAlign.center : TextAlign.left),
+  Widget _headerCell(String text, {required double width}) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 8.0),
+      child: Text(text, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5), textAlign: TextAlign.left),
     );
   }
 
-  Widget _dataCell(String text, {bool centrar = false, bool isBold = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
-      child: Text(text, style: TextStyle(fontSize: 10, color: isBold ? const Color(0xFF1976D2) : Colors.black87, fontWeight: isBold ? FontWeight.bold : FontWeight.normal), textAlign: centrar ? TextAlign.center : TextAlign.left, maxLines: 2, overflow: TextOverflow.ellipsis),
+  Widget _buildFixedCell(double width, String text, {bool isBold = false, Color color = const Color(0xFF1E293B), TextAlign align = TextAlign.left}) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      alignment: align == TextAlign.center ? Alignment.center : Alignment.centerLeft,
+      child: Text(text, style: TextStyle(fontSize: 11, fontWeight: isBold ? FontWeight.bold : FontWeight.normal, color: color), textAlign: align, maxLines: 2, overflow: TextOverflow.ellipsis),
     );
   }
-}
-
-class _PieChartPainter extends CustomPainter {
-  final int aptos;
-  final int noAptos;
-  final int pendientes;
-
-  _PieChartPainter({required this.aptos, required this.noAptos, required this.pendientes});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    double total = (aptos + noAptos + pendientes).toDouble();
-    if (total == 0) return;
-
-    double startAngle = -pi / 2;
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final paint = Paint()..style = PaintingStyle.fill;
-
-    if (aptos > 0) {
-      double sweep = (aptos / total) * 2 * pi;
-      paint.color = Colors.green;
-      canvas.drawArc(rect, startAngle, sweep, true, paint);
-      startAngle += sweep;
-    }
-
-    if (noAptos > 0) {
-      double sweep = (noAptos / total) * 2 * pi;
-      paint.color = Colors.red;
-      canvas.drawArc(rect, startAngle, sweep, true, paint);
-      startAngle += sweep;
-    }
-
-    if (pendientes > 0) {
-      double sweep = (pendientes / total) * 2 * pi;
-      paint.color = Colors.orange;
-      canvas.drawArc(rect, startAngle, sweep, true, paint);
-    }
-
-    final innerPaint = Paint()..style = PaintingStyle.fill..color = Colors.white;
-    canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width / 3.5, innerPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

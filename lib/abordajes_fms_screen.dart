@@ -60,14 +60,17 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
     super.dispose();
   }
 
-  Future<Uint8List> _comprimirBytesMax15KB(Uint8List originalBytes, {int maxKB = 15, int startWidth = 800}) async {
+  // 📸 FUNCIÓN MEJORADA: Comprime cualquier imagen a Máximo 30KB
+  Future<Uint8List> _comprimirImagen(Uint8List originalBytes, {int maxKB = 30, int startWidth = 500}) async {
     int maxBytes = maxKB * 1024;
+    // Si la foto original ya pesa menos de lo solicitado, la pasamos directo
     if (originalBytes.lengthInBytes <= maxBytes) return originalBytes;
 
     Uint8List bytes = originalBytes;
     int targetWidth = startWidth;
 
-    while (bytes.lengthInBytes > maxBytes && targetWidth >= 60) {
+    // Bucle agresivo: reduce el tamaño progresivamente hasta alcanzar la meta de 30KB
+    while (bytes.lengthInBytes > maxBytes && targetWidth >= 100) {
       try {
         ui.Codec codec = await ui.instantiateImageCodec(bytes, targetWidth: targetWidth);
         ui.FrameInfo frame = await codec.getNextFrame();
@@ -82,7 +85,8 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
       } catch (e) {
         break;
       }
-      targetWidth -= 150;
+      // Reducimos el tamaño en un 40% por cada intento para bajar rápidamente el peso
+      targetWidth = (targetWidth * 0.6).toInt();
     }
     return bytes;
   }
@@ -225,6 +229,8 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
   }
 
   // 📄 --- GENERADOR DE PDF (LOCAL FLUTTER) --- 📄
+
+  // 🛠️ CORRECCIÓN: Método robusto para descargar imágenes e insertarlas en el PDF
   Future<pw.ImageProvider?> _obtenerImagenPdf(String? url) async {
     if (url == null || url.trim().isEmpty || url == 'null') return null;
     try {
@@ -233,10 +239,16 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
         final bytes = base64Decode(base64str);
         return pw.MemoryImage(bytes);
       } else {
-        return await networkImage(url);
+        // Descargamos la imagen manualmente. Esto evita los errores de networkImage() de la librería PDF.
+        final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+        if (response.statusCode == 200) {
+          return pw.MemoryImage(response.bodyBytes);
+        } else {
+          return null;
+        }
       }
     } catch (e) {
-      debugPrint('Error cargando imagen para PDF (CORS/Timeout): $e');
+      debugPrint('Error cargando imagen para PDF: $e');
       return null;
     }
   }
@@ -248,22 +260,20 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
     try {
       final doc = pw.Document();
 
-      // Cargar Evidencia
       pw.ImageProvider? imgEvidencia;
       try {
-        imgEvidencia = await _obtenerImagenPdf(row['foto_abordaje']?.toString()).timeout(const Duration(seconds: 5));
+        // Le damos 15 segundos para descargar la imagen antes de rendirse
+        imgEvidencia = await _obtenerImagenPdf(row['foto_abordaje']?.toString());
       } catch (_) {}
 
-      // Cargar Firma
       pw.ImageProvider? imgFirma;
       try {
-        imgFirma = await _obtenerImagenPdf(row['firma_opm']?.toString()).timeout(const Duration(seconds: 5));
+        imgFirma = await _obtenerImagenPdf(row['firma_opm']?.toString());
       } catch (_) {}
 
-      // Cargar Logo desde Assets
       pw.ImageProvider? imgLogo;
       try {
-        final ByteData data = await rootBundle.load('assets/icono_ol.png');
+        final ByteData data = await rootBundle.load('assets/lm_logo.png');
         imgLogo = pw.MemoryImage(data.buffer.asUint8List());
       } catch (e) {
         debugPrint('No se encontró el logo local: $e');
@@ -281,7 +291,6 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
       String opm = row['nombre']?.toString() ?? row['operador']?.toString() ?? '-';
       String origenOpm = row['origen_opm']?.toString() ?? '-';
 
-      // Homologación segura para Atribuible a Flota
       String atribuibleRaw = (row['atribuible_flota']?.toString() ?? '').trim().toUpperCase();
       String atribuibleFlota = (atribuibleRaw == 'MAQUINA' || atribuibleRaw == 'SI') ? 'Maquina' : 'Comportamiento';
 
@@ -306,7 +315,6 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
           margin: const pw.EdgeInsets.all(40),
           build: (pw.Context context) {
             return [
-              // 1. ENCABEZADO CORPORATIVO
               pw.Table(
                   border: pw.TableBorder.all(color: PdfColors.black, width: 1),
                   columnWidths: {
@@ -328,14 +336,14 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
                           pw.Container(
                             alignment: pw.Alignment.center,
                             height: 60,
-                            child: pw.Text('ABORDAJE DE OPERADORES DE MONTACARGAS (FMS)', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9, color: PdfColors.grey600), textAlign: pw.TextAlign.center),
+                            child: pw.Text('ABORDAJE DE OPERADORES DE MONTACARGAS (FMS)', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9, color: PdfColors.black), textAlign: pw.TextAlign.center),
                           ),
                           pw.Column(
                               crossAxisAlignment: pw.CrossAxisAlignment.stretch,
                               children: [
                                 pw.Container(padding: const pw.EdgeInsets.all(4), decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide())), child: pw.Text('Código: CO-EL-SST-FT-48', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700))),
                                 pw.Container(padding: const pw.EdgeInsets.all(4), decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide())), child: pw.Text('Versión: 03', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700))),
-                                pw.Container(padding: const pw.EdgeInsets.all(4), child: pw.Text('Fecha: 25/03/2025', style: const pw.TextStyle(fontSize: 7, color: PdfColors.blue))),
+                                pw.Container(padding: const pw.EdgeInsets.all(4), child: pw.Text('Fecha: 25/03/2025', style: const pw.TextStyle(fontSize: 7, color: PdfColors.black))),
                               ]
                           )
                         ]
@@ -344,7 +352,6 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
               ),
               pw.SizedBox(height: 20),
 
-              // 2. TABLA GENERAL DE DATOS
               pw.Table(
                 border: pw.TableBorder.all(color: PdfColors.black, width: 1),
                 columnWidths: {
@@ -363,7 +370,6 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
               ),
               pw.SizedBox(height: 20),
 
-              // 2.5 ATRIBUIBLE Y OBSERVACIÓN TALLER
               pw.Table(
                 border: pw.TableBorder.all(color: PdfColors.black, width: 1),
                 columnWidths: {
@@ -378,7 +384,6 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
               ),
               pw.SizedBox(height: 20),
 
-              // 3. ACCIÓN PREVENTIVA
               pw.Table(
                   border: pw.TableBorder.all(color: PdfColors.black, width: 1),
                   columnWidths: { 0: const pw.FlexColumnWidth(1.3), 1: const pw.FlexColumnWidth(5.3) },
@@ -391,7 +396,6 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
               ),
               pw.SizedBox(height: 20),
 
-              // 4. DESCRIPCIÓN
               pw.Table(
                   border: pw.TableBorder.all(color: PdfColors.black, width: 1),
                   children: [
@@ -414,7 +418,6 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
               ),
               pw.SizedBox(height: 20),
 
-              // 5. ACCIÓN CORRECTIVA
               pw.Table(
                   border: pw.TableBorder.all(color: PdfColors.black, width: 1),
                   columnWidths: { 0: const pw.FlexColumnWidth(1.3), 1: const pw.FlexColumnWidth(5.3) },
@@ -427,7 +430,6 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
               ),
               pw.SizedBox(height: 20),
 
-              // 6. EVIDENCIA FOTOGRÁFICA
               pw.Table(
                   border: pw.TableBorder.all(color: PdfColors.black, width: 1),
                   children: [
@@ -452,7 +454,6 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
               ),
               pw.SizedBox(height: 20),
 
-              // 7. FIRMA
               pw.Table(
                   border: pw.TableBorder.all(color: PdfColors.black, width: 1),
                   columnWidths: { 0: const pw.FlexColumnWidth(1.3), 1: const pw.FlexColumnWidth(5.3) },
@@ -480,6 +481,7 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
       String fechaFormateadaArchivo = fechaAbordaje.replaceAll(RegExp(r'[/: ]'), '_');
       String opmFormateadoArchivo = opm.replaceAll(' ', '_').replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '');
 
+      // Descarga segura multiplataforma
       await Printing.sharePdf(
         bytes: bytesPdf,
         filename: 'Abordaje_${fechaFormateadaArchivo}_$opmFormateadoArchivo.pdf',
@@ -499,11 +501,9 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
     final String idRegistro = row['id']?.toString() ?? '';
     final String estado = _determinarEstado(row);
 
-    // MODIFICACIÓN: Ya NO bloqueamos la edición en PC.
-    // Solo bloqueamos si el estado ya está "REALIZADO".
-    final bool esSoloLectura = (estado == 'REALIZADO');
+    // ✅ MODIFICACIÓN: Ya NO se bloquea la edición. Permitimos editar los campos así esté REALIZADO.
+    final bool esSoloLectura = false;
 
-    // Normalización: si en BD viene PENDIENTE, NO, null o cualquier otro valor, asigna 'Comportamiento'
     String atribuibleRaw = (row['atribuible_flota']?.toString() ?? '').trim().toUpperCase();
     String atribuibleFlotaSel = (atribuibleRaw == 'MAQUINA' || atribuibleRaw == 'SI') ? 'Maquina' : 'Comportamiento';
 
@@ -540,13 +540,23 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
 
     Future<void> capturarFotoAbordaje(StateSetter setModalState) async {
       try {
-        final XFile? pickedFile = await _imagePicker.pickImage(source: ImageSource.camera, imageQuality: 50, maxWidth: 800, maxHeight: 800);
+        // Reducimos la calidad inicial de la cámara a 25 para ayudar a la compresión máxima a 30 KB
+        final XFile? pickedFile = await _imagePicker.pickImage(
+            source: ImageSource.camera,
+            imageQuality: 25,
+            maxWidth: 500,
+            maxHeight: 500
+        );
+
         if (pickedFile != null) {
           final bytesOriginales = await pickedFile.readAsBytes();
-          final bytesComprimidos = await _comprimirBytesMax15KB(bytesOriginales, maxKB: 100, startWidth: 800);
+
+          // Obligamos a que la imagen pase por el filtro estricto de 30 KB máximo
+          final bytesComprimidos = await _comprimirImagen(bytesOriginales, maxKB: 30, startWidth: 500);
+
           setModalState(() {
             fotoEvidenciaBytes = bytesComprimidos;
-            fotoEvidenciaNombre = pickedFile.name;
+            fotoEvidenciaNombre = 'foto_abordaje_${DateTime.now().millisecondsSinceEpoch}.png';
           });
         }
       } catch (e) {
@@ -583,14 +593,14 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(color: const Color(0xFF0D47A1).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                                child: Icon(esSoloLectura ? Icons.remove_red_eye_rounded : Icons.edit_document, color: const Color(0xFF0D47A1), size: isMobileModal ? 18 : 22),
+                                child: Icon(Icons.edit_document, color: const Color(0xFF0D47A1), size: isMobileModal ? 18 : 22),
                               ),
                               const SizedBox(width: 12),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text('Investigación y Abordaje', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-                                  Text(esSoloLectura ? 'Modo Lectura (Abordaje Realizado)' : 'Complete los detalles del reporte', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                  Text(estado == 'REALIZADO' ? 'Editando Reporte Previo' : 'Complete los detalles del reporte', style: const TextStyle(fontSize: 11, color: Colors.grey)),
                                 ],
                               ),
                             ],
@@ -647,7 +657,7 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
                           hint: 'Seleccionar módulo/lugar...',
                           controller: lugarCtrl,
                           readOnly: esSoloLectura,
-                          onTap: esSoloLectura ? () {} : () => _abrirBuscadorGenericoFormulario(dialogContext: dialogContext, titulo: 'Lugar Exacto', opciones: _listaAreasLogistica, controller: lugarCtrl, setModalState: setModalState),
+                          onTap: () => _abrirBuscadorGenericoFormulario(dialogContext: dialogContext, titulo: 'Lugar Exacto', opciones: _listaAreasLogistica, controller: lugarCtrl, setModalState: setModalState),
                         ),
                         const SizedBox(height: 12),
                         _buildCampoFechaHora(fechaHoraSeleccionada),
@@ -659,7 +669,7 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
                               hint: 'Seleccionar módulo/lugar...',
                               controller: lugarCtrl,
                               readOnly: esSoloLectura,
-                              onTap: esSoloLectura ? () {} : () => _abrirBuscadorGenericoFormulario(dialogContext: dialogContext, titulo: 'Lugar Exacto', opciones: _listaAreasLogistica, controller: lugarCtrl, setModalState: setModalState),
+                              onTap: () => _abrirBuscadorGenericoFormulario(dialogContext: dialogContext, titulo: 'Lugar Exacto', opciones: _listaAreasLogistica, controller: lugarCtrl, setModalState: setModalState),
                             )),
                             const SizedBox(width: 12),
                             Expanded(child: _buildCampoFechaHora(fechaHoraSeleccionada)),
@@ -675,18 +685,18 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
                           const SizedBox(height: 4),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: esSoloLectura ? Colors.grey.shade100 : Colors.white),
+                            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: Colors.white),
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<String>(
                                 value: (atribuibleFlotaSel == 'Maquina') ? 'Maquina' : 'Comportamiento',
                                 isDense: true,
                                 isExpanded: true,
-                                style: TextStyle(fontSize: 13, color: esSoloLectura ? Colors.black54 : Colors.black87),
+                                style: const TextStyle(fontSize: 13, color: Colors.black87),
                                 items: const [
                                   DropdownMenuItem(value: 'Comportamiento', child: Text('Comportamiento')),
                                   DropdownMenuItem(value: 'Maquina', child: Text('Maquina')),
                                 ],
-                                onChanged: esSoloLectura ? null : (v) {
+                                onChanged: (v) {
                                   if (v != null) {
                                     setModalState(() {
                                       atribuibleFlotaSel = v;
@@ -707,7 +717,7 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      _buildInputForm('Observación Taller ${atribuibleFlotaSel == 'Maquina' ? '*' : ''}', obsTallerCtrl, hint: 'Escriba observaciones para taller...', maxLines: 2, readOnly: esSoloLectura || atribuibleFlotaSel == 'Comportamiento'),
+                      _buildInputForm('Observación Taller ${atribuibleFlotaSel == 'Maquina' ? '*' : ''}', obsTallerCtrl, hint: 'Escriba observaciones para taller...', maxLines: 2, readOnly: atribuibleFlotaSel == 'Comportamiento'),
                       const SizedBox(height: 12),
 
                       _buildInputForm('Descripción detallada del Evento *', descripcionCtrl, hint: 'Describa cómo y por qué sucedió...', maxLines: 3, readOnly: esSoloLectura),
@@ -737,125 +747,126 @@ class _AbordajesFmsScreenState extends State<AbordajesFmsScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          if (esSoloLectura) ...[
-                            ElevatedButton(
-                              onPressed: () => Navigator.of(ctx).pop(),
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade300, foregroundColor: Colors.black87, elevation: 0, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                              child: const Text('Cerrar Ventana', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            )
-                          ] else ...[
-                            TextButton(
-                              onPressed: () => Navigator.of(ctx).pop(),
-                              child: const Text('Cancelar', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold)),
-                            ),
-                            const SizedBox(width: 12),
-                            ElevatedButton.icon(
-                              onPressed: guardandoModal
-                                  ? null
-                                  : () async {
-                                if (lugarCtrl.text.trim().isEmpty || descripcionCtrl.text.trim().isEmpty || accionPrevCtrl.text.trim().isEmpty || accionCorrCtrl.text.trim().isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('⚠️ Complete todos los campos de texto (*)'), backgroundColor: Colors.orange));
-                                  return;
-                                }
-                                if (atribuibleFlotaSel == 'Maquina' && obsTallerCtrl.text.trim().isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('⚠️ La observación de taller es obligatoria si es atribuible a Máquina'), backgroundColor: Colors.orange));
-                                  return;
-                                }
-                                if (!tieneFotoPrevia && fotoEvidenciaBytes == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('⚠️ La foto de evidencia es obligatoria (*)'), backgroundColor: Colors.orange));
-                                  return;
-                                }
-                                if (!tieneFirmaPrevia && puntosFirma.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('⚠️ La Firma del OPM es obligatoria (*)'), backgroundColor: Colors.orange));
-                                  return;
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            child: const Text('Cancelar', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton.icon(
+                            onPressed: guardandoModal
+                                ? null
+                                : () async {
+                              if (lugarCtrl.text.trim().isEmpty || descripcionCtrl.text.trim().isEmpty || accionPrevCtrl.text.trim().isEmpty || accionCorrCtrl.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('⚠️ Complete todos los campos de texto (*)'), backgroundColor: Colors.orange));
+                                return;
+                              }
+                              if (atribuibleFlotaSel == 'Maquina' && obsTallerCtrl.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('⚠️ La observación de taller es obligatoria si es atribuible a Máquina'), backgroundColor: Colors.orange));
+                                return;
+                              }
+                              if (!tieneFotoPrevia && fotoEvidenciaBytes == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('⚠️ La foto de evidencia es obligatoria (*)'), backgroundColor: Colors.orange));
+                                return;
+                              }
+                              if (!tieneFirmaPrevia && puntosFirma.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('⚠️ La Firma del OPM es obligatoria (*)'), backgroundColor: Colors.orange));
+                                return;
+                              }
+
+                              setModalState(() => guardandoModal = true);
+
+                              try {
+                                String? urlFotoAbordaje;
+                                String? urlFirma;
+
+                                // ✅ CORRECCIÓN: Tratamiento seguro para subir la foto
+                                if (fotoEvidenciaBytes != null && fotoEvidenciaNombre != null) {
+                                  try {
+                                    urlFotoAbordaje = await ApiService.subirFoto('foto_abordaje', fotoEvidenciaBytes!, fotoEvidenciaNombre!);
+                                  } catch (e) {
+                                    debugPrint("Error subiendo foto: $e");
+                                    setModalState(() => guardandoModal = false);
+                                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('❌ Error subiendo la foto al servidor.'), backgroundColor: Colors.red));
+                                    return; // Se detiene si la imagen falla
+                                  }
                                 }
 
-                                setModalState(() => guardandoModal = true);
+                                if (puntosFirma.isNotEmpty) {
+                                  try {
+                                    RenderRepaintBoundary boundary = firmaKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+                                    ui.Image image = await boundary.toImage(pixelRatio: 1.0);
+                                    ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+                                    if (byteData != null) {
+                                      Uint8List bytes = byteData.buffer.asUint8List();
+                                      // Firma súper comprimida (Max 14 KB)
+                                      Uint8List compressed = await _comprimirImagen(bytes, maxKB: 14, startWidth: 400);
+                                      urlFirma = await ApiService.subirFoto('firma_opm', compressed, 'firma_${DateTime.now().millisecondsSinceEpoch}.png');
+                                    }
+                                  } catch (e) {
+                                    debugPrint("Error subiendo firma: $e");
+                                  }
+                                }
+
+                                final Map<String, dynamic> updateData = {
+                                  'abordaje': 'REALIZADO',
+                                  'fecha_hora_abordaje': fechaHoraSeleccionada.toIso8601String(),
+                                  'lugar_ocurrencia': lugarCtrl.text.trim(),
+                                  'descripcion_evento': descripcionCtrl.text.trim(),
+                                  'accion_preventiva': accionPrevCtrl.text.trim(),
+                                  'accion_correctiva': accionCorrCtrl.text.trim(),
+                                  'atribuible_flota': atribuibleFlotaSel,
+                                  'observacion_taller': obsTallerCtrl.text.trim(),
+                                };
+
+                                if (urlFotoAbordaje != null) updateData['foto_abordaje'] = urlFotoAbordaje;
+                                if (urlFirma != null) updateData['firma_opm'] = urlFirma;
+
+                                await ApiService.actualizar('fms', 'fms_reporte', 'id', idRegistro, updateData);
 
                                 try {
-                                  String? urlFotoAbordaje;
-                                  String? urlFirma;
-
-                                  if (fotoEvidenciaBytes != null && fotoEvidenciaNombre != null) {
-                                    try { urlFotoAbordaje = await ApiService.subirFoto('foto_abordaje', fotoEvidenciaBytes!, fotoEvidenciaNombre!); } catch (e) { debugPrint("Error foto: $e"); }
-                                  }
-
-                                  if (puntosFirma.isNotEmpty) {
-                                    try {
-                                      RenderRepaintBoundary boundary = firmaKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-                                      ui.Image image = await boundary.toImage(pixelRatio: 1.0);
-                                      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-                                      if (byteData != null) {
-                                        Uint8List bytes = byteData.buffer.asUint8List();
-                                        Uint8List compressed = await _comprimirBytesMax15KB(bytes, maxKB: 14, startWidth: 400);
-                                        urlFirma = await ApiService.subirFoto('firma_opm', compressed, 'firma_${DateTime.now().millisecondsSinceEpoch}.png');
-                                      }
-                                    } catch (e) {
-                                      debugPrint("Error subiendo firma: $e");
-                                    }
-                                  }
-
-                                  final Map<String, dynamic> updateData = {
-                                    'abordaje': 'REALIZADO',
-                                    'fecha_hora_abordaje': fechaHoraSeleccionada.toIso8601String(),
-                                    'lugar_ocurrencia': lugarCtrl.text.trim(),
-                                    'descripcion_evento': descripcionCtrl.text.trim(),
-                                    'accion_preventiva': accionPrevCtrl.text.trim(),
-                                    'accion_correctiva': accionCorrCtrl.text.trim(),
-                                    'atribuible_flota': atribuibleFlotaSel,
-                                    'observacion_taller': obsTallerCtrl.text.trim(),
+                                  final payloadBot = {
+                                    "fecha": _formatearFechaCorta(row['fecha']?.toString()),
+                                    "fecha_hora_abordaje": '${fechaHoraSeleccionada.day.toString().padLeft(2,'0')}/${fechaHoraSeleccionada.month.toString().padLeft(2,'0')}/${fechaHoraSeleccionada.year} ${fechaHoraSeleccionada.hour.toString().padLeft(2,'0')}:${fechaHoraSeleccionada.minute.toString().padLeft(2,'0')}',
+                                    "turno": row['turno']?.toString() ?? '-',
+                                    "opm": opmNombre,
+                                    "supervisor": row['supervisor']?.toString() ?? '-',
+                                    "origen_opm": origenOpm,
+                                    "evento": row['evento']?.toString() ?? '-',
+                                    "maquina": row['maquina']?.toString() ?? '-',
+                                    "lugar": lugarCtrl.text.trim(),
+                                    "area": row['area']?.toString() ?? '-',
+                                    "atribuible_flota": atribuibleFlotaSel,
+                                    "observacion_taller": obsTallerCtrl.text.trim(),
+                                    "accion_preventiva": accionPrevCtrl.text.trim(),
+                                    "descripcion": descripcionCtrl.text.trim(),
+                                    "accion_correctiva": accionCorrCtrl.text.trim(),
+                                    "foto_abordaje": urlFotoAbordaje ?? row['foto_abordaje']?.toString(),
+                                    "firma_opm": urlFirma ?? row['firma_opm']?.toString()
                                   };
 
-                                  if (urlFotoAbordaje != null) updateData['foto_abordaje'] = urlFotoAbordaje;
-                                  if (urlFirma != null) updateData['firma_opm'] = urlFirma;
-
-                                  await ApiService.actualizar('fms', 'fms_reporte', 'id', idRegistro, updateData);
-
-                                  try {
-                                    final payloadBot = {
-                                      "fecha": _formatearFechaCorta(row['fecha']?.toString()),
-                                      "fecha_hora_abordaje": '${fechaHoraSeleccionada.day.toString().padLeft(2,'0')}/${fechaHoraSeleccionada.month.toString().padLeft(2,'0')}/${fechaHoraSeleccionada.year} ${fechaHoraSeleccionada.hour.toString().padLeft(2,'0')}:${fechaHoraSeleccionada.minute.toString().padLeft(2,'0')}',
-                                      "turno": row['turno']?.toString() ?? '-',
-                                      "opm": opmNombre,
-                                      "supervisor": row['supervisor']?.toString() ?? '-',
-                                      "origen_opm": origenOpm,
-                                      "evento": row['evento']?.toString() ?? '-',
-                                      "maquina": row['maquina']?.toString() ?? '-',
-                                      "lugar": lugarCtrl.text.trim(),
-                                      "area": row['area']?.toString() ?? '-',
-                                      "atribuible_flota": atribuibleFlotaSel,
-                                      "observacion_taller": obsTallerCtrl.text.trim(),
-                                      "accion_preventiva": accionPrevCtrl.text.trim(),
-                                      "descripcion": descripcionCtrl.text.trim(),
-                                      "accion_correctiva": accionCorrCtrl.text.trim(),
-                                      "foto_abordaje": urlFotoAbordaje ?? row['foto_abordaje']?.toString(),
-                                      "firma_opm": urlFirma ?? row['firma_opm']?.toString()
-                                    };
-
-                                    await http.post(
-                                      Uri.parse('https://plantatocancipa.site/api/generar-abordaje'),
-                                      headers: {'Content-Type': 'application/json'},
-                                      body: jsonEncode(payloadBot),
-                                    ).timeout(const Duration(seconds: 4));
-                                  } catch (e) {
-                                    debugPrint("Error notificando al bot de PDF: $e");
-                                  }
-
-                                  if (mounted) {
-                                    Navigator.of(ctx).pop();
-                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Abordaje guardado exitosamente'), backgroundColor: Colors.green));
-                                    _cargarDatosBD();
-                                  }
+                                  await http.post(
+                                    Uri.parse('https://plantatocancipa.site/api/generar-abordaje'),
+                                    headers: {'Content-Type': 'application/json'},
+                                    body: jsonEncode(payloadBot),
+                                  ).timeout(const Duration(seconds: 4));
                                 } catch (e) {
-                                  setModalState(() => guardandoModal = false);
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ Error actualizando datos: $e'), backgroundColor: Colors.red));
+                                  debugPrint("Error notificando al bot de PDF: $e");
                                 }
-                              },
-                              icon: guardandoModal ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.check_circle_outline, size: 16),
-                              label: Text(guardandoModal ? 'Guardando...' : 'Guardar Investigación', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E88E5), foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                            ),
-                          ]
+
+                                if (mounted) {
+                                  Navigator.of(ctx).pop();
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Abordaje guardado exitosamente'), backgroundColor: Colors.green));
+                                  _cargarDatosBD();
+                                }
+                              } catch (e) {
+                                setModalState(() => guardandoModal = false);
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ Error actualizando datos: $e'), backgroundColor: Colors.red));
+                              }
+                            },
+                            icon: guardandoModal ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.check_circle_outline, size: 16),
+                            label: Text(guardandoModal ? 'Guardando...' : (estado == 'REALIZADO' ? 'Guardar Cambios' : 'Guardar Investigación'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E88E5), foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                          ),
                         ],
                       )
                     ],

@@ -16,7 +16,7 @@ dependencies:
   image_picker: ^1.1.2
   pdf: ^3.13.0
   printing: ^5.15.0
-  intl: ^0.19.0 # <--- 1. AQUÍ SE AGREGÓ EL PAQUETE FALTANTE
+  intl: ^0.19.0
   image: ^4.10.1
 
 dev_dependencies:
@@ -28,7 +28,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/icono_ol.png
+    - assets/
 
 flutter_icons:
   android: "launcher_icon"
@@ -38,4 +38,4 @@ flutter_icons:
     generate: true
     image_path: "assets/icono_ol.png"
     background_color: "#FFFFFF"
-    theme_color: "#0A2540" # <--- 2. AQUÍ SE CERRÓ LA COMILLA Y SE COMPLETÓ EL COLOR
+    theme_color: "#0A2540"

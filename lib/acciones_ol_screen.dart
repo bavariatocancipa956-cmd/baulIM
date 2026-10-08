@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
 import 'api_service.dart';
 
 class AccionesOlScreen extends StatefulWidget {
@@ -71,38 +71,31 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
     super.dispose();
   }
 
-  // 🗜️ COMPRIME FOTO HASTA UN MÁXIMO DE 15 KB
-  Future<Uint8List> _comprimirBytesMax15KB(Uint8List originalBytes, {int maxKB = 15}) async {
+  // 🗜️ COMPRESIÓN INTELIGENTE EN JPG (MAX 20KB)
+  Future<Uint8List> _comprimirImagen(Uint8List originalBytes, {int maxKB = 20}) async {
     int maxBytes = maxKB * 1024;
-    if (originalBytes.lengthInBytes <= maxBytes) {
-      return originalBytes;
-    }
+    if (originalBytes.lengthInBytes <= maxBytes) return originalBytes;
 
-    Uint8List bytes = originalBytes;
-    int targetWidth = 300;
+    img.Image? decodedImage = img.decodeImage(originalBytes);
+    if (decodedImage == null) return originalBytes;
 
-    while (bytes.lengthInBytes > maxBytes && targetWidth >= 60) {
-      try {
-        ui.Codec codec = await ui.instantiateImageCodec(bytes, targetWidth: targetWidth);
-        ui.FrameInfo frame = await codec.getNextFrame();
-        ui.Image image = frame.image;
-        ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    int quality = 80; // Calidad inicial ligeramente menor para ayudar a llegar a 20KB
+    int width = decodedImage.width;
 
-        if (byteData != null) {
-          Uint8List newBytes = byteData.buffer.asUint8List();
-          bytes = newBytes;
-          if (newBytes.lengthInBytes <= maxBytes) {
-            return newBytes;
-          }
-        }
-      } catch (e) {
-        debugPrint('Error comprimiendo imagen: $e');
-        break;
+    List<int> compressedBytes = img.encodeJpg(decodedImage, quality: quality);
+
+    // Bucle para reducir calidad y tamaño hasta lograr el objetivo de 20KB
+    while (compressedBytes.length > maxBytes && (quality > 15 || width > 150)) {
+      if (quality > 30) {
+        quality -= 15;
+      } else {
+        width = (width * 0.75).toInt(); // Reducimos tamaño si la calidad ya está al límite
+        decodedImage = img.copyResize(decodedImage!, width: width);
       }
-      targetWidth -= 30;
+      compressedBytes = img.encodeJpg(decodedImage!, quality: quality);
     }
 
-    return bytes;
+    return Uint8List.fromList(compressedBytes);
   }
 
   Future<void> _cargarDatosBD() async {
@@ -198,27 +191,26 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
   }
 
   String _determinarEstado(Map<String, dynamic> row) {
-    String st = row['status']?.toString().trim() ?? '';
-    if (st.isNotEmpty && st.toLowerCase() != 'null') {
-      return st.toUpperCase();
-    }
-
     String cierre = row['fecha_cierre']?.toString().trim() ?? row['cierre']?.toString().trim() ?? '';
-    if (cierre.isNotEmpty && cierre.toLowerCase() != 'null' && cierre.toLowerCase() != 'pendiente') {
+    String st = row['status']?.toString().trim().toUpperCase() ?? '';
+
+    if ((cierre.isNotEmpty && cierre.toLowerCase() != 'null' && cierre.toLowerCase() != 'pendiente') || st == 'CERRADAS') {
       return 'CERRADAS';
     }
 
-    String? compStr = row['compromiso']?.toString();
-    if (compStr != null && compStr.isNotEmpty) {
+    String? compStr = row['compromiso']?.toString() ?? row['fecha_compromiso']?.toString();
+    if (compStr != null && compStr.isNotEmpty && compStr.toLowerCase() != 'null') {
       DateTime? fechaComp = DateTime.tryParse(compStr.split('T')[0]);
       if (fechaComp != null) {
         DateTime hoy = DateTime.now();
         DateTime hoySinHora = DateTime(hoy.year, hoy.month, hoy.day);
+
         if (fechaComp.isBefore(hoySinHora)) {
           return 'RETRASADAS';
         }
       }
     }
+
     return 'EN PROGRESO';
   }
 
@@ -267,7 +259,6 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
     });
   }
 
-  // 🔍 BUSCADOR GENÉRICO EN DESPLEGABLE
   void _abrirBuscadorGenerico({
     required BuildContext dialogContext,
     required String titulo,
@@ -360,7 +351,6 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
     );
   }
 
-  // 🔍 MODAL CON BUSCADOR PARA BARRA DE FILTROS SUPERIOR
   void _abrirModalBuscadorFiltro(String titulo, List<String> opciones, String seleccionActual, Function(String) onSelect) {
     showModalBottomSheet(
       context: context,
@@ -444,7 +434,6 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
     );
   }
 
-  // ➕ MODAL AGREGAR ACCIÓN
   void _abrirModalAgregarAccion() {
     final TextEditingController territorioCtrl = TextEditingController(
       text: _listaTerritoriosBD.isNotEmpty ? _listaTerritoriosBD.first : 'Tocancipá',
@@ -464,17 +453,17 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
       try {
         final XFile? pickedFile = await _imagePicker.pickImage(
           source: source,
-          imageQuality: 10,
-          maxWidth: 300,
-          maxHeight: 300,
+          imageQuality: 70, // Empezamos desde una base amigable para comprimir a 20KB
+          maxWidth: 600,
+          maxHeight: 600,
         );
         if (pickedFile != null) {
           final bytesOriginales = await pickedFile.readAsBytes();
-          final bytesComprimidos = await _comprimirBytesMax15KB(bytesOriginales, maxKB: 15);
+          final bytesComprimidos = await _comprimirImagen(bytesOriginales, maxKB: 20);
 
           setModalState(() {
             fotoHallazgoBytes = bytesComprimidos;
-            fotoHallazgoNombre = pickedFile.name;
+            fotoHallazgoNombre = '${DateTime.now().millisecondsSinceEpoch}.jpg';
           });
         }
       } catch (e) {
@@ -706,7 +695,7 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
                                   },
                                   icon: const Icon(Icons.add_a_photo_rounded, size: 16),
                                   label: Text(
-                                    fotoHallazgoBytes == null ? '+ Adjuntar Evidencia (Foto <= 15KB)' : 'Cambiar Foto',
+                                    fotoHallazgoBytes == null ? '+ Adjuntar Evidencia (Foto <= 20KB)' : 'Cambiar Foto',
                                     style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                                   ),
                                   style: ElevatedButton.styleFrom(
@@ -890,7 +879,6 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
     );
   }
 
-  // 🛡️ MODAL GESTIONAR Y CERRAR ACCIÓN
   void _abrirModalGestionarCierre(Map<String, dynamic> row) {
     final String id = row['id']?.toString() ?? '';
     final String responsableFila = (row['responsable'] ?? '').toString().trim().toUpperCase();
@@ -909,17 +897,17 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
       try {
         final XFile? pickedFile = await _imagePicker.pickImage(
           source: source,
-          imageQuality: 10,
-          maxWidth: 300,
-          maxHeight: 300,
+          imageQuality: 70,
+          maxWidth: 600,
+          maxHeight: 600,
         );
         if (pickedFile != null) {
           final bytesOriginales = await pickedFile.readAsBytes();
-          final bytesComprimidos = await _comprimirBytesMax15KB(bytesOriginales, maxKB: 15);
+          final bytesComprimidos = await _comprimirImagen(bytesOriginales, maxKB: 20);
 
           setModalState(() {
             fotoCierreBytes = bytesComprimidos;
-            fotoCierreNombre = pickedFile.name;
+            fotoCierreNombre = '${DateTime.now().millisecondsSinceEpoch}.jpg';
           });
         }
       } catch (e) {
@@ -1099,7 +1087,7 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
                                 );
                               },
                               icon: const Icon(Icons.add_a_photo, size: 16),
-                              label: Text(fotoCierreBytes == null ? '+ Evidencia Cierre (Foto <= 15KB)' : 'Cambiar Foto Cierre', style: const TextStyle(fontSize: 11)),
+                              label: Text(fotoCierreBytes == null ? '+ Evidencia Cierre (Foto <= 20KB)' : 'Cambiar Foto Cierre', style: const TextStyle(fontSize: 11)),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFE8F5E9),
                                 foregroundColor: const Color(0xFF0D47A1),
@@ -1211,7 +1199,6 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
     );
   }
 
-  // 🖼️ VISOR DE IMÁGENES
   void _mostrarPreviewImagen(String url) {
     showDialog(
       context: context,
@@ -1244,7 +1231,7 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
               Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: SelectableText(
-                  url.startsWith('data:image') ? 'Imagen almacenada en BD (<= 15KB)' : url,
+                  url.startsWith('data:image') ? 'Imagen almacenada en BD (<= 20KB)' : url,
                   style: const TextStyle(fontSize: 10, color: Colors.grey),
                   textAlign: TextAlign.center,
                 ),
@@ -1369,7 +1356,6 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
     );
   }
 
-  // 🚪 ENCABEZADO CON BOTÓN DE MENÚ LATERAL Y BOTÓN ACTUALIZAR
   Widget _buildEncabezado() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
