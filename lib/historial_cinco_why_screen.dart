@@ -63,11 +63,10 @@ class HistorialCincoWhyScreen extends StatefulWidget {
 
 class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
   // --- CONSTANTES DE DISEÑO EJECUTIVO ---
-  final Color _colorBackground = const Color(0xFFF1F5F9); // Fondo gris muy suave
-  final Color _colorPrincipal = const Color(0xFFF36F21); // Naranja corporativo
-  final Color _colorEncabezados = const Color(0xFF1E293B); // Azul Marino / Slate oscuro para headers
+  final Color _colorBackground = const Color(0xFFF1F5F9);
+  final Color _colorPrincipal = const Color(0xFFF36F21);
+  final Color _colorEncabezados = const Color(0xFF1E293B);
   final Color _colorTextoOscuro = const Color(0xFF334155);
-  final Color _colorTextoMuted = const Color(0xFF64748B);
 
   final List<BoxShadow> _sombraCards = [
     BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))
@@ -83,21 +82,11 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
   List<Map<String, dynamic>> _registrosFiltrados = [];
   Set<String> _seleccionados = {};
 
-  DateTime? _fechaDesde;
-  DateTime? _fechaHasta;
-  String _filtroPI = 'Todos';
   String _filtroArea = 'Todas';
-  String _busquedaTexto = '';
-  final TextEditingController _buscarCtrl = TextEditingController();
+  String _filtroEstado = 'Todos';
 
-  List<String> _listaFiltroPI = ['Todos'];
   List<String> _listaFiltroArea = ['Todas'];
-
-  int _totalReportes = 0;
-  int _conCausaRaiz = 0;
-  int _sinCausaRaiz = 0;
-  Map<String, int> _conteoPI = {};
-  Map<String, int> _conteoAreas = {};
+  final List<String> _listaFiltroEstado = ['Todos', 'Pendiente', 'Concluido'];
 
   int _registrosPorPagina = 10;
   int _paginaActual = 1;
@@ -113,7 +102,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
   @override
   void dispose() {
     _tablaScrollController.dispose();
-    _buscarCtrl.dispose();
     super.dispose();
   }
 
@@ -140,23 +128,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
       _registros = datosProcesados;
       _extraerListasParaFiltros();
 
-      if (_registros.isNotEmpty) {
-        List<DateTime> fechas = [];
-        for (var r in _registros) {
-          String? rawF = r['fecha']?.toString();
-          if (rawF != null && rawF.isNotEmpty) {
-            String soloF = rawF.split('T')[0].split(' ')[0];
-            DateTime? dt = DateTime.tryParse(soloF);
-            if (dt != null) fechas.add(dt);
-          }
-        }
-        if (fechas.isNotEmpty) {
-          fechas.sort();
-          _fechaDesde = fechas.first;
-          _fechaHasta = fechas.last;
-        }
-      }
-
       _aplicarFiltros();
       setState(() => _cargando = false);
     } catch (e) {
@@ -168,46 +139,34 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
   }
 
   void _extraerListasParaFiltros() {
-    Set<String> pis = {'Todos'};
     Set<String> areas = {'Todas'};
 
     for (var r in _registros) {
-      String pi = (r['pi']?.toString() ?? '').trim().toUpperCase();
       String ar = (r['area']?.toString() ?? '').trim().toUpperCase();
-      if (pi.isNotEmpty && pi != 'NULL') pis.add(pi);
       if (ar.isNotEmpty && ar != 'NULL') areas.add(ar);
     }
 
-    _listaFiltroPI = pis.toList()..sort();
     _listaFiltroArea = areas.toList()..sort();
   }
 
   void _aplicarFiltros() {
     setState(() {
       _registrosFiltrados = _registros.where((r) {
-        if (_fechaDesde != null || _fechaHasta != null) {
-          DateTime? dt = DateTime.tryParse(r['fecha']?.toString() ?? '');
-          if (dt != null) {
-            if (_fechaDesde != null && dt.isBefore(_fechaDesde!)) return false;
-            if (_fechaHasta != null && dt.isAfter(_fechaHasta!.add(const Duration(days: 1)))) return false;
-          }
-        }
-
         String ar = (r['area']?.toString() ?? '').trim().toUpperCase();
-        String pi = (r['pi']?.toString() ?? '').trim().toUpperCase();
-
         if (_filtroArea != 'Todas' && ar != _filtroArea) return false;
-        if (_filtroPI != 'Todos' && pi != _filtroPI) return false;
 
-        if (_busquedaTexto.isNotEmpty) {
-          String search = _busquedaTexto.toLowerCase();
-          bool match = false;
-          if (ar.toLowerCase().contains(search)) match = true;
-          if (pi.toLowerCase().contains(search)) match = true;
-          if ((r['participantes']?.toString() ?? '').toLowerCase().contains(search)) match = true;
-          if ((r['valor_disparador_alcanzado']?.toString() ?? '').toLowerCase().contains(search)) match = true;
-
-          if (!match) return false;
+        // Búsqueda en los estados de las acciones
+        if (_filtroEstado != 'Todos') {
+          bool coincideEstado = false;
+          for (int i = 1; i <= 4; i++) {
+            String est = (r['estado_accion$i']?.toString() ?? '').trim().toUpperCase();
+            if (est == _filtroEstado.toUpperCase()) {
+              coincideEstado = true;
+              break;
+            }
+          }
+          // Si el filtro es Pendiente, y el estado general es Pendiente o no hay acciones, podrías querer manejarlo
+          if (!coincideEstado) return false;
         }
 
         return true;
@@ -215,42 +174,15 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
 
       _paginaActual = 1;
       _seleccionados.clear();
-      _calcularEstadisticas(_registrosFiltrados);
     });
   }
 
   void _limpiarFiltros() {
     setState(() {
-      _fechaDesde = null; _fechaHasta = null; _filtroPI = 'Todos'; _filtroArea = 'Todas';
-      _busquedaTexto = ''; _buscarCtrl.clear();
+      _filtroArea = 'Todas';
+      _filtroEstado = 'Todos';
       _aplicarFiltros();
     });
-  }
-
-  void _calcularEstadisticas(List<Map<String, dynamic>> datos) {
-    _totalReportes = datos.length;
-    _conCausaRaiz = 0;
-    _sinCausaRaiz = 0;
-
-    Map<String, int> piTemp = {};
-    Map<String, int> areasTemp = {};
-
-    for (var fila in datos) {
-      String pi = (fila['pi']?.toString() ?? 'Sin PI').toUpperCase();
-      String area = (fila['area']?.toString() ?? 'Sin Área').toUpperCase();
-      String causa = (fila['encontro_causa_raiz']?.toString() ?? '').toUpperCase();
-
-      if (pi.trim().isEmpty || pi == 'NULL') pi = 'SIN PI';
-      if (area.trim().isEmpty || area == 'NULL') area = 'SIN ÁREA';
-
-      if (causa == 'SI') _conCausaRaiz++; else _sinCausaRaiz++;
-
-      piTemp[pi] = (piTemp[pi] ?? 0) + 1;
-      areasTemp[area] = (areasTemp[area] ?? 0) + 1;
-    }
-
-    _conteoPI = Map.fromEntries(piTemp.entries.toList()..sort((e1, e2) => e2.value.compareTo(e1.value)));
-    _conteoAreas = Map.fromEntries(areasTemp.entries.toList()..sort((e1, e2) => e2.value.compareTo(e1.value)));
   }
 
   void _toggleSeleccion(String id) {
@@ -377,10 +309,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
     TextEditingController causaRaizCtrl = TextEditingController(text: row['causa_raiz']?.toString() ?? row['causa raiz']?.toString() ?? '');
 
     String? piSeleccionado = row['pi']?.toString();
-    List<String> validPIs = _listaFiltroPI.where((e) => e != 'Todos').toList();
-    if (piSeleccionado != null && !validPIs.contains(piSeleccionado)) {
-      piSeleccionado = null;
-    }
 
     String reqInvestigacion = row['requiere_investigacion_adicional']?.toString().toUpperCase() == 'SI' ? 'SI' : 'NO';
     String encontroCausa = row['encontro_causa_raiz']?.toString().toUpperCase() == 'SI' ? 'SI' : 'NO';
@@ -622,29 +550,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                               Row(
                                 children: [
                                   Expanded(child: _buildInputTextField('Área / Proceso', areaCtrl, readOnly: soloLectura)),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          const Text('PI Afectado', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
-                                          const SizedBox(height: 4),
-                                          Container(
-                                            height: 35, padding: const EdgeInsets.symmetric(horizontal: 10),
-                                            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: soloLectura ? const Color(0xFFF8FAFC) : Colors.white),
-                                            child: DropdownButtonHideUnderline(
-                                              child: DropdownButton<String>(
-                                                value: piSeleccionado,
-                                                isExpanded: true,
-                                                style: TextStyle(fontSize: 11, color: soloLectura ? Colors.black54 : Colors.black87),
-                                                items: validPIs.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                                                onChanged: soloLectura ? null : (val) => setModalState(() => piSeleccionado = val),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                  )
                                 ],
                               ),
                               const SizedBox(height: 12),
@@ -940,8 +845,8 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                             const SizedBox(width: 12),
                             ElevatedButton.icon(
                               onPressed: guardando ? null : () async {
-                                if (areaCtrl.text.trim().isEmpty || piSeleccionado == null || disparadorCtrl.text.trim().isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, complete Área, PI y Disparador.'), backgroundColor: Colors.orange));
+                                if (areaCtrl.text.trim().isEmpty || disparadorCtrl.text.trim().isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, complete Área y Disparador.'), backgroundColor: Colors.orange));
                                   return;
                                 }
 
@@ -1517,19 +1422,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
             _buildBarraFiltros(),
             const SizedBox(height: 20),
 
-            _buildDashboardTarjetas(),
-            const SizedBox(height: 20),
-
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: _buildTablaTop('Análisis por Área (Top 10)', 'ÁREA', _conteoAreas)),
-                const SizedBox(width: 16),
-                Expanded(child: _buildTablaTop('Análisis por PI (Top 10)', 'PI AFECTADO', _conteoPI)),
-              ],
-            ),
-            const SizedBox(height: 20),
-
             _buildTablaDetalleCompleto(),
             const SizedBox(height: 40),
           ],
@@ -1558,8 +1450,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
   }
 
   Widget _buildBarraFiltros() {
-    bool hayFiltrosActivos = _fechaDesde != null || _fechaHasta != null || _filtroPI != 'Todos' || _filtroArea != 'Todas' || _busquedaTexto.isNotEmpty;
-
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -1578,14 +1468,13 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                 children: [
                   Icon(Icons.filter_alt_rounded, color: _colorPrincipal, size: 18),
                   const SizedBox(width: 8),
-                  Text('Filtros y Búsqueda', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _colorTextoOscuro)),
+                  Text('Filtros (Acciones)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _colorTextoOscuro)),
                 ],
               ),
-              if (hayFiltrosActivos)
-                InkWell(
-                  onTap: _limpiarFiltros,
-                  child: const Text('🧹 Limpiar Filtros', style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold)),
-                ),
+              InkWell(
+                onTap: _limpiarFiltros,
+                child: const Text('🧹 Limpiar Filtros', style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold)),
+              ),
             ],
           ),
           const Divider(height: 24),
@@ -1594,9 +1483,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
             runSpacing: 16,
             crossAxisAlignment: WrapCrossAlignment.end,
             children: [
-              _buildSelectorFecha('DESDE', _fechaDesde ?? DateTime.now(), (d) => setState(() => _fechaDesde = d)),
-              _buildSelectorFecha('HASTA', _fechaHasta ?? DateTime.now(), (d) => setState(() => _fechaHasta = d)),
-
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1620,140 +1506,23 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('PI AFECTADO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                  const Text('ESTADO (ACCIONES)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 6),
                   Container(
                     height: 38, width: 160, padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: Colors.white),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
-                        value: _filtroPI, isExpanded: true, style: const TextStyle(fontSize: 12, color: Color(0xFF334155), fontWeight: FontWeight.w500),
+                        value: _filtroEstado, isExpanded: true, style: const TextStyle(fontSize: 12, color: Color(0xFF334155), fontWeight: FontWeight.w500),
                         icon: const Icon(Icons.arrow_drop_down, size: 16, color: Color(0xFF94A3B8)),
-                        items: _listaFiltroPI.map((e) => DropdownMenuItem(value: e, child: Text(e, overflow: TextOverflow.ellipsis))).toList(),
-                        onChanged: (val) => setState(() { _filtroPI = val!; _aplicarFiltros(); }),
+                        items: _listaFiltroEstado.map((e) => DropdownMenuItem(value: e, child: Text(e, overflow: TextOverflow.ellipsis))).toList(),
+                        onChanged: (val) => setState(() { _filtroEstado = val!; _aplicarFiltros(); }),
                       ),
                     ),
                   )
                 ],
               ),
-
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('BUSCAR (EVENTO, OPM, DISP)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
-                  const SizedBox(height: 6),
-                  SizedBox(
-                    width: 240, height: 38,
-                    child: TextField(
-                      controller: _buscarCtrl,
-                      style: const TextStyle(fontSize: 12),
-                      decoration: InputDecoration(
-                        hintText: 'Término de búsqueda...',
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: Colors.grey.shade300)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: Colors.grey.shade300)),
-                      ),
-                      onChanged: (v) { _busquedaTexto = v; _aplicarFiltros(); },
-                    ),
-                  ),
-                ],
-              ),
-
-              ElevatedButton.icon(
-                onPressed: _aplicarFiltros,
-                icon: const Icon(Icons.filter_alt_rounded, size: 16),
-                label: const Text('FILTRAR', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _colorPrincipal,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  elevation: 0,
-                ),
-              ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSelectorFecha(String label, DateTime fecha, Function(DateTime) onSelect) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
-        const SizedBox(height: 6),
-        InkWell(
-          onTap: () async {
-            final p = await showDatePicker(context: context, initialDate: fecha, firstDate: DateTime(2020), lastDate: DateTime(2100));
-            if (p != null) onSelect(p);
-          },
-          child: Container(
-            height: 38,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
-                const SizedBox(width: 8),
-                const Icon(Icons.calendar_today_outlined, size: 14, color: Color(0xFF94A3B8)),
-              ],
-            ),
-          ),
-        )
-      ],
-    );
-  }
-
-  Widget _buildDashboardTarjetas() {
-    return Row(
-      children: [
-        Expanded(child: _buildKPICard('TOTAL ANÁLISIS', '$_totalReportes', Icons.analytics_rounded, _colorPrincipal)),
-        const SizedBox(width: 16),
-        Expanded(child: _buildKPICard('CON CAUSA RAÍZ', '$_conCausaRaiz', Icons.fact_check_rounded, const Color(0xFF10B981))),
-        const SizedBox(width: 16),
-        Expanded(child: _buildKPICard('SIN CAUSA RAÍZ', '$_sinCausaRaiz', Icons.warning_amber_rounded, const Color(0xFFEF4444))),
-      ],
-    );
-  }
-
-  Widget _buildKPICard(String titulo, String valor, IconData icono, Color colorIcono) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: _sombraCards,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: colorIcono.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icono, color: colorIcono, size: 28),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(titulo, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
-                const SizedBox(height: 4),
-                Text(valor, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Color(0xFF1E293B))),
-              ],
-            ),
           ),
         ],
       ),
@@ -1783,63 +1552,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
           child,
         ],
       ),
-    );
-  }
-
-  Widget _buildTablaTop(String titulo, String headerCol1, Map<String, int> datos) {
-    var top10 = datos.entries.take(10).toList();
-    int totalTop = top10.fold(0, (sum, e) => sum + e.value);
-
-    return _buildCardBase(
-        titulo: titulo,
-        child: Container(
-          height: 250,
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(8)),
-          child: Column(
-            children: [
-              Container(
-                decoration: BoxDecoration(color: _colorEncabezados, borderRadius: const BorderRadius.vertical(top: Radius.circular(8))),
-                child: Row(
-                  children: [
-                    Expanded(flex: 3, child: Padding(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text(headerCol1, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)))),
-                    const Expanded(flex: 1, child: Padding(padding: EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text('TOTAL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5), textAlign: TextAlign.center))),
-                    const Expanded(flex: 1, child: Padding(padding: EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text('%', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5), textAlign: TextAlign.center))),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: top10.length,
-                  itemBuilder: (ctx, i) {
-                    var e = top10[i];
-                    double pct = _totalReportes == 0 ? 0 : (e.value / _totalReportes) * 100;
-                    Color rowColor = i % 2 == 0 ? Colors.white : const Color(0xFFF8FAFC);
-                    return Container(
-                      decoration: BoxDecoration(color: rowColor, border: const Border(bottom: BorderSide(color: Color(0xFFF1F5F9)))),
-                      child: Row(
-                        children: [
-                          Expanded(flex: 3, child: Padding(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text(e.key, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))))),
-                          Expanded(flex: 1, child: Padding(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text('${e.value}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87), textAlign: TextAlign.center))),
-                          Expanded(flex: 1, child: Padding(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text('${pct.toStringAsFixed(1)}%', style: const TextStyle(fontSize: 11, color: Colors.black54), textAlign: TextAlign.center))),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              Container(
-                decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)), border: Border(top: BorderSide(color: Colors.orange.shade200))),
-                child: Row(
-                  children: [
-                    const Expanded(flex: 3, child: Padding(padding: EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text('TOTALES MOSTRADOS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.black87)))),
-                    Expanded(flex: 1, child: Padding(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text('$totalTop', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.black87), textAlign: TextAlign.center))),
-                    Expanded(flex: 1, child: Padding(padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10), child: Text(_totalReportes == 0 ? '0%' : '${((totalTop / _totalReportes) * 100).toStringAsFixed(1)}%', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.black87), textAlign: TextAlign.center))),
-                  ],
-                ),
-              )
-            ],
-          ),
-        )
     );
   }
 

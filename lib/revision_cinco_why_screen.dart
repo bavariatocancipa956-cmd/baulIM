@@ -315,9 +315,6 @@ class _RevisionCincoWhyScreenState extends State<RevisionCincoWhyScreen> {
     );
   }
 
-  // ==========================================
-  // FUNCIONES RECUPERADAS (PDF Y EXCEL)
-  // ==========================================
   Future<void> _descargarExcel() async {
     try {
       String csv = "ID;Fecha;Area;PI Afectado;Participantes;Valor Disparador;Causa Raiz Encontrada;Req. Investigacion Adicional;Estado Evaluacion;Observacion Evaluador;Estado Acciones;Resultado 2;Observacion 2;Ultima Aprobacion\n";
@@ -403,6 +400,7 @@ class _RevisionCincoWhyScreenState extends State<RevisionCincoWhyScreen> {
     final boldStyle = pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9);
     const regularStyle = pw.TextStyle(fontSize: 9);
     final greyBg = PdfColors.grey300;
+    final darkGreyBg = PdfColors.grey400;
 
     pw.Widget celdaLabel(String texto, {pw.TextAlign align = pw.TextAlign.center, PdfColor colorTexto = PdfColors.black}) => pw.Container(
       padding: const pw.EdgeInsets.all(5), alignment: align == pw.TextAlign.center ? pw.Alignment.center : pw.Alignment.centerLeft,
@@ -434,7 +432,7 @@ class _RevisionCincoWhyScreenState extends State<RevisionCincoWhyScreen> {
           evidenciasWidgets.add(pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
             if (textoEvidencia.isNotEmpty) pw.Text(textoEvidencia, style: const pw.TextStyle(fontSize: 8)),
             pw.SizedBox(height: 4),
-            pw.Text('[Imagen omitida]', style: const pw.TextStyle(fontSize: 8, color: PdfColors.red800)),
+            pw.Text('[Imagen omitida o muy pesada]', style: const pw.TextStyle(fontSize: 8, color: PdfColors.red800)),
           ]));
         } else {
           evidenciasWidgets.add(pw.Text(textoEvidencia, style: const pw.TextStyle(fontSize: 8)));
@@ -449,20 +447,37 @@ class _RevisionCincoWhyScreenState extends State<RevisionCincoWhyScreen> {
     String participantes = row['participantes']?.toString() ?? '-';
     String disparador = row['valor_disparador_alcanzado']?.toString() ?? '-';
     String contencion = row['contencion_problema']?.toString() ?? '-';
+    String necesitaInv = (row['requiere_investigacion_adicional']?.toString() ?? 'NO').toUpperCase();
+    String causaRaizFormulario = (row['encontro_causa_raiz']?.toString() ?? 'NO').toUpperCase();
+    String descripcionCausaRaiz = row['causa_raiz']?.toString() ?? row['causa raiz']?.toString() ?? '-';
 
-    String q1 = row['cumple_flujo_resolucion']?.toString() ?? 'PD';
-    String q2 = row['resolucion_primera_linea']?.toString() ?? 'PD';
-    String q3 = row['secuencia_tiene_sentido']?.toString() ?? 'PD';
-    String q4 = row['porques_con_evidencia']?.toString() ?? 'PD';
-    String q5 = row['encontro_causa_raiz']?.toString() ?? 'PD';
-    String q6 = row['proponen_acciones_eliminacion']?.toString() ?? 'PD';
+    String q1 = row['cumple_flujo_resolucion']?.toString() ?? '';
+    if (q1 == 'PD') q1 = '';
+    String q2 = row['resolucion_primera_linea']?.toString() ?? '';
+    if (q2 == 'PD') q2 = '';
+    String q3 = row['secuencia_tiene_sentido']?.toString() ?? '';
+    if (q3 == 'PD') q3 = '';
+    String q4 = row['porques_con_evidencia']?.toString() ?? '';
+    if (q4 == 'PD') q4 = '';
+    String q5 = row['encontro_causa_raiz_eval']?.toString() ?? row['encontro_causa_raiz']?.toString() ?? '';
+    if (q5 == 'PD') q5 = '';
+    String q6 = row['proponen_acciones_eliminacion']?.toString() ?? '';
+    if (q6 == 'PD') q6 = '';
 
     String estadoEval = row['estado']?.toString().toUpperCase() ?? 'PENDIENTE';
-    String calificacion = estadoEval == 'PENDIENTE' ? '0.0%' : (row['resultado']?.toString() ?? '0.0%');
-    String obsEval = estadoEval == 'PENDIENTE' ? 'Pendiente' : (row['observacion_evaluador']?.toString() ?? '-');
-    String resultado2 = row['resultado_2']?.toString() ?? (estadoEval == 'APTO' ? 'No aplica' : 'Pendiente');
-    String ultimaAprovacion = row['ultima aprovacion']?.toString() ?? row['ultima_aprovacion']?.toString() ?? (estadoEval == 'APTO' ? 'No aplica' : 'Pendiente');
-    String obs2 = row['Observacion 2']?.toString() ?? row['observacion_2']?.toString() ?? '-';
+
+    String displayEstadoEval = estadoEval == 'PENDIENTE' ? '' : estadoEval;
+    String calificacion = estadoEval == 'PENDIENTE' ? '' : (row['resultado']?.toString() ?? '');
+    String obsEval = estadoEval == 'PENDIENTE' ? '' : (row['observacion_evaluador']?.toString() ?? '');
+
+    String resultado2 = row['resultado_2']?.toString() ?? (estadoEval == 'APTO' ? 'No aplica' : '');
+    if (resultado2 == 'Pendiente por revisión') resultado2 = '';
+
+    String ultimaAprovacion = row['ultima_aprovacion']?.toString() ?? row['ultima aprovacion']?.toString() ?? (estadoEval == 'APTO' ? 'No aplica' : '');
+    if (ultimaAprovacion == 'Pendiente por revisión') ultimaAprovacion = '';
+
+    String obs2 = row['Observacion 2']?.toString() ?? row['observacion_2']?.toString() ?? '';
+    if (obs2 == '-') obs2 = '';
 
     return [
       pw.Table(
@@ -472,7 +487,7 @@ class _RevisionCincoWhyScreenState extends State<RevisionCincoWhyScreen> {
             pw.TableRow(
                 children: [
                   pw.Container(height: 40, padding: const pw.EdgeInsets.all(5), alignment: pw.Alignment.center, child: imgLogo != null ? pw.Image(imgLogo, fit: pw.BoxFit.contain) : pw.SizedBox()),
-                  pw.Container(color: greyBg, alignment: pw.Alignment.center, child: pw.Text('Revisión 5 porqués', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16))),
+                  pw.Container(color: greyBg, alignment: pw.Alignment.center, child: pw.Text('Análisis 5 porqués', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16))),
                   pw.Container(alignment: pw.Alignment.center, child: pw.Text('ABInBev', style: pw.TextStyle(color: PdfColors.red800, fontWeight: pw.FontWeight.bold, fontSize: 14))),
                 ]
             )
@@ -494,11 +509,11 @@ class _RevisionCincoWhyScreenState extends State<RevisionCincoWhyScreen> {
         pw.TableRow(children: [ pw.Container(padding: const pw.EdgeInsets.all(8), child: pw.Text(disparador, style: regularStyle)) ]),
       ]),
       pw.Table(border: pw.TableBorder.all(color: PdfColors.black, width: 1), children: [
-        pw.TableRow(children: [ pw.Container(color: greyBg, padding: const pw.EdgeInsets.all(4), alignment: pw.Alignment.center, child: pw.Text('Contención:', style: boldStyle)) ]),
+        pw.TableRow(children: [ pw.Container(color: greyBg, padding: const pw.EdgeInsets.all(4), alignment: pw.Alignment.center, child: pw.Text('¿Qué se hizo para contener el problema y lograr reanudar el proceso?', style: boldStyle)) ]),
         pw.TableRow(children: [ pw.Container(padding: const pw.EdgeInsets.all(8), child: pw.Text(contencion, style: regularStyle)) ]),
       ]),
       pw.Table(border: pw.TableBorder.all(color: PdfColors.black, width: 1), children: [
-        pw.TableRow(children: [ pw.Container(color: greyBg, padding: const pw.EdgeInsets.all(4), alignment: pw.Alignment.center, child: pw.Text('5 Porqués', style: boldStyle)) ]),
+        pw.TableRow(children: [ pw.Container(color: greyBg, padding: const pw.EdgeInsets.all(4), alignment: pw.Alignment.center, child: pw.Text('5W', style: boldStyle)) ]),
       ]),
       pw.Table(border: pw.TableBorder.all(color: PdfColors.black, width: 1), columnWidths: { 0: const pw.FlexColumnWidth(4), 1: const pw.FlexColumnWidth(2) }, children: [
         pw.TableRow(children: [
@@ -530,6 +545,65 @@ class _RevisionCincoWhyScreenState extends State<RevisionCincoWhyScreen> {
             ]
         );
       }),
+      pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.black, width: 1),
+          columnWidths: { 0: const pw.FlexColumnWidth(1.5), 1: const pw.FlexColumnWidth(2), 2: const pw.FlexColumnWidth(1), 3: const pw.FlexColumnWidth(3), 4: const pw.FlexColumnWidth(1) },
+          children: [
+            pw.TableRow(
+                children: [
+                  pw.Container(color: greyBg, padding: const pw.EdgeInsets.all(4), alignment: pw.Alignment.center, child: pw.Text('Cierre del ciclo:', style: boldStyle)),
+                  pw.Container(padding: const pw.EdgeInsets.all(4), alignment: pw.Alignment.center, child: pw.Text('¿Se necesita realizar una\ninvestigación adicional?', style: boldStyle, textAlign: pw.TextAlign.center)),
+                  pw.Container(color: necesitaInv == 'SI' ? PdfColors.red : PdfColors.green, padding: const pw.EdgeInsets.all(4), alignment: pw.Alignment.center, child: pw.Text(necesitaInv, style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 11))),
+                  pw.Container(padding: const pw.EdgeInsets.all(4), alignment: pw.Alignment.center, child: pw.Text('Causa raíz encontrada', style: boldStyle, textAlign: pw.TextAlign.center)),
+                  pw.Container(color: causaRaizFormulario == 'SI' ? PdfColors.green : PdfColors.red, padding: const pw.EdgeInsets.all(4), alignment: pw.Alignment.center, child: pw.Text(causaRaizFormulario, style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 11)))
+                ]
+            )
+          ]
+      ),
+      pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.black, width: 1),
+          columnWidths: { 0: const pw.FlexColumnWidth(1), 1: const pw.FlexColumnWidth(5) },
+          children: [
+            pw.TableRow(children: [ celdaLabel('Descripción Causa Raíz:'), celdaValor(descripcionCausaRaiz) ]),
+          ]
+      ),
+      pw.SizedBox(height: 5),
+      pw.Table(border: pw.TableBorder.all(color: PdfColors.black, width: 1), children: [
+        pw.TableRow(children: [ pw.Container(color: greyBg, padding: const pw.EdgeInsets.all(4), alignment: pw.Alignment.center, child: pw.Text('ACCIONES', style: boldStyle)) ]),
+      ]),
+      pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.black, width: 1),
+          columnWidths: { 0: const pw.FlexColumnWidth(1.2), 1: const pw.FlexColumnWidth(1.5), 2: const pw.FlexColumnWidth(3), 3: const pw.FlexColumnWidth(1.5), 4: const pw.FlexColumnWidth(1.2), 5: const pw.FlexColumnWidth(1.2) },
+          children: [
+            pw.TableRow(
+                decoration: pw.BoxDecoration(color: greyBg),
+                children: [ celdaLabel('Tipo de accion'), celdaLabel('Aplicar a / Actividad'), celdaLabel('Accion / Descripción'), celdaLabel('Responsable'), celdaLabel('Fecha cierre'), celdaLabel('Estado') ]
+            ),
+            ...List.generate(4, (index) {
+              String tipo = row['accion_${index + 1}']?.toString() ?? '';
+              String act = row['actividad_${index + 1}']?.toString() ?? '';
+              String desc = row['descripcion_${index + 1}']?.toString() ?? '';
+              String resp = row['responsable_${index + 1}']?.toString() ?? '';
+              String fCie = row['fecha_cierre_${index + 1}']?.toString().split('T')[0] ?? '';
+              String est = row['estado_accion${index + 1}']?.toString() ?? '';
+
+              if (tipo.isEmpty && desc.isEmpty) return pw.TableRow(children: []);
+              bool isPreventiva = tipo.toUpperCase() == 'PREVENTIVA';
+              bool isConcluida = est.toUpperCase() == 'CONCLUIDA';
+
+              return pw.TableRow(
+                  children: [
+                    celdaLabel(tipo, align: pw.TextAlign.center),
+                    pw.Container(color: isPreventiva ? darkGreyBg : PdfColors.white, padding: const pw.EdgeInsets.all(5), alignment: pw.Alignment.center, child: pw.Text(act.isEmpty ? 'N/A' : act, style: pw.TextStyle(fontSize: 9, fontWeight: isPreventiva ? pw.FontWeight.bold : pw.FontWeight.normal))),
+                    celdaValor(desc),
+                    celdaValor(resp),
+                    celdaValor(fCie),
+                    celdaLabel(est.isNotEmpty ? est : 'Pendiente', align: pw.TextAlign.center, colorTexto: isConcluida ? PdfColors.green800 : PdfColors.orange800),
+                  ]
+              );
+            })
+          ]
+      ),
       if (estadoEval == 'APTO' || estadoEval == 'NO APTO' || estadoEval == 'PENDIENTE') ...[
         pw.SizedBox(height: 15),
         pw.Table(
@@ -542,12 +616,12 @@ class _RevisionCincoWhyScreenState extends State<RevisionCincoWhyScreen> {
             border: pw.TableBorder.all(color: PdfColors.black, width: 1),
             columnWidths: { 0: const pw.FlexColumnWidth(5), 1: const pw.FlexColumnWidth(1) },
             children: [
-              pw.TableRow(children: [celdaValor('1. Flujo de resolución adecuado'), celdaLabel(q1, align: pw.TextAlign.center)]),
-              pw.TableRow(children: [celdaValor('2. Resolución con primera línea'), celdaLabel(q2, align: pw.TextAlign.center)]),
-              pw.TableRow(children: [celdaValor('3. Secuencia tiene sentido'), celdaLabel(q3, align: pw.TextAlign.center)]),
-              pw.TableRow(children: [celdaValor('4. Porqués con evidencia'), celdaLabel(q4, align: pw.TextAlign.center)]),
-              pw.TableRow(children: [celdaValor('5. Encontró causa raíz'), celdaLabel(q5, align: pw.TextAlign.center)]),
-              pw.TableRow(children: [celdaValor('6. Acciones de eliminación'), celdaLabel(q6, align: pw.TextAlign.center)]),
+              pw.TableRow(children: [celdaValor('1. ¿Se cumple con el flujo de resolución de problemas (participación adecuada)?'), celdaLabel(q1, align: pw.TextAlign.center)]),
+              pw.TableRow(children: [celdaValor('2. ¿La resolución se llevó a cabo con la primera línea (operadores y técnicos)?'), celdaLabel(q2, align: pw.TextAlign.center)]),
+              pw.TableRow(children: [celdaValor('3. ¿La secuencia de la resolución de problema tiene sentido?'), celdaLabel(q3, align: pw.TextAlign.center)]),
+              pw.TableRow(children: [celdaValor('4. ¿Todos los porqués cuentan con evidencia?'), celdaLabel(q4, align: pw.TextAlign.center)]),
+              pw.TableRow(children: [celdaValor('5. ¿Se encontró causa raíz?'), celdaLabel(q5, align: pw.TextAlign.center)]),
+              pw.TableRow(children: [celdaValor('6. ¿Se proponen acciones de eliminación de la causa raíz?'), celdaLabel(q6, align: pw.TextAlign.center)]),
             ]
         ),
         pw.Table(
@@ -555,10 +629,10 @@ class _RevisionCincoWhyScreenState extends State<RevisionCincoWhyScreen> {
             columnWidths: { 0: const pw.FlexColumnWidth(1), 1: const pw.FlexColumnWidth(1), 2: const pw.FlexColumnWidth(1), 3: const pw.FlexColumnWidth(1) },
             children: [
               pw.TableRow(children: [
-                celdaLabel('Calificación:'),
-                celdaLabel(calificacion, colorTexto: estadoEval == 'APTO' ? PdfColors.green800 : PdfColors.red800),
-                celdaLabel('Estado:'),
-                celdaLabel(estadoEval, colorTexto: estadoEval == 'APTO' ? PdfColors.green800 : PdfColors.red800),
+                celdaLabel('Calificación Obtenida:'),
+                celdaLabel(calificacion, colorTexto: estadoEval == 'APTO' ? PdfColors.green800 : (estadoEval == 'NO APTO' ? PdfColors.red800 : PdfColors.black)),
+                celdaLabel('Estado Final:'),
+                celdaLabel(displayEstadoEval, colorTexto: estadoEval == 'APTO' ? PdfColors.green800 : (estadoEval == 'NO APTO' ? PdfColors.red800 : PdfColors.black)),
               ])
             ]
         ),
@@ -574,14 +648,20 @@ class _RevisionCincoWhyScreenState extends State<RevisionCincoWhyScreen> {
               ])
             ]
         ),
-        pw.Table(border: pw.TableBorder.all(color: PdfColors.black, width: 1), children: [
-          pw.TableRow(children: [ pw.Container(color: greyBg, padding: const pw.EdgeInsets.all(4), alignment: pw.Alignment.centerLeft, child: pw.Text('Obs Evaluador 1:', style: boldStyle)) ]),
-          pw.TableRow(children: [ pw.Container(padding: const pw.EdgeInsets.all(8), child: pw.Text(obsEval, style: regularStyle)) ]),
-        ]),
-        pw.Table(border: pw.TableBorder.all(color: PdfColors.black, width: 1), children: [
-          pw.TableRow(children: [ pw.Container(color: greyBg, padding: const pw.EdgeInsets.all(4), alignment: pw.Alignment.centerLeft, child: pw.Text('Obs Evaluador 2:', style: boldStyle)) ]),
-          pw.TableRow(children: [ pw.Container(padding: const pw.EdgeInsets.all(8), child: pw.Text(obs2, style: regularStyle)) ]),
-        ]),
+        pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.black, width: 1),
+            children: [
+              pw.TableRow(children: [ pw.Container(color: greyBg, padding: const pw.EdgeInsets.all(4), alignment: pw.Alignment.centerLeft, child: pw.Text('Observación Evaluador (1ra Revisión):', style: boldStyle)) ]),
+              pw.TableRow(children: [ pw.Container(padding: const pw.EdgeInsets.all(8), child: pw.Text(obsEval, style: regularStyle)) ]),
+            ]
+        ),
+        pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.black, width: 1),
+            children: [
+              pw.TableRow(children: [ pw.Container(color: greyBg, padding: const pw.EdgeInsets.all(4), alignment: pw.Alignment.centerLeft, child: pw.Text('Observación 2 (2da Revisión):', style: boldStyle)) ]),
+              pw.TableRow(children: [ pw.Container(padding: const pw.EdgeInsets.all(8), child: pw.Text(obs2, style: regularStyle)) ]),
+            ]
+        ),
       ]
     ];
   }
@@ -863,6 +943,64 @@ class _RevisionCincoWhyScreenState extends State<RevisionCincoWhyScreen> {
                                                 evWidget,
                                               ],
                                             ),
+                                          );
+                                        }),
+
+                                        // SECCIÓN AÑADIDA: ACCIONES PROPUESTAS EN EL MODAL DE REVISIÓN
+                                        const Divider(height: 30),
+                                        const Text('Acciones Propuestas:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E293B))),
+                                        const SizedBox(height: 12),
+                                        ...List.generate(4, (index) {
+                                          String tipo = row['accion_${index + 1}']?.toString() ?? '';
+                                          String act = row['actividad_${index + 1}']?.toString() ?? '';
+                                          String desc = row['descripcion_${index + 1}']?.toString() ?? '';
+                                          String resp = row['responsable_${index + 1}']?.toString() ?? '';
+                                          String fCie = row['fecha_cierre_${index + 1}']?.toString().split('T')[0] ?? '';
+                                          String est = row['estado_accion${index + 1}']?.toString() ?? '';
+
+                                          if (tipo.isEmpty && desc.isEmpty) return const SizedBox();
+
+                                          return Container(
+                                              margin: const EdgeInsets.only(bottom: 12),
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                  color: const Color(0xFFF8FAFC),
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  border: Border.all(color: Colors.grey.shade200)
+                                              ),
+                                              child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                      children: [
+                                                        Text('Acción #${index + 1} - $tipo', style: TextStyle(fontWeight: FontWeight.bold, color: _colorPrincipal, fontSize: 12)),
+                                                        Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                          decoration: BoxDecoration(
+                                                            color: est.toUpperCase() == 'CONCLUIDA' ? Colors.green.shade100 : Colors.orange.shade100,
+                                                            borderRadius: BorderRadius.circular(4),
+                                                          ),
+                                                          child: Text(est.isEmpty ? 'Pendiente' : est, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: est.toUpperCase() == 'CONCLUIDA' ? Colors.green.shade800 : Colors.orange.shade800)),
+                                                        )
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    if (tipo.toUpperCase() == 'PREVENTIVA' && act.isNotEmpty) ...[
+                                                      Text('Actividad: $act', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87)),
+                                                      const SizedBox(height: 4),
+                                                    ],
+                                                    Text('Descripción: $desc', style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                                                    const SizedBox(height: 6),
+                                                    Row(
+                                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                      children: [
+                                                        Text('Responsable: $resp', style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                                                        Text('Cierre: $fCie', style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                                                      ],
+                                                    )
+                                                  ]
+                                              )
                                           );
                                         }),
 

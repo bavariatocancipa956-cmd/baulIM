@@ -5,7 +5,8 @@ import 'acciones_ol_screen.dart';
 import 'abordajes_fms_screen.dart';
 import 'cinco_why_screen.dart';
 import 'historial_cinco_why_screen.dart';
-import 'revision_cinco_why_screen.dart'; // <-- Importamos la nueva pantalla
+import 'revision_cinco_why_screen.dart';
+import 'acciones_cinco_why_screen.dart';
 
 class MainLayoutScreen extends StatefulWidget {
   final Map<String, dynamic> usuario;
@@ -48,15 +49,15 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 850;
 
-    // Vistas principales integradas (índices 0 al 6)
     final List<Widget> paginas = [
-      DashboardOlScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)), // 0
-      ReportesDiariosScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)), // 1
-      AccionesOlScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)), // 2
-      AbordajesFmsScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)), // 3
-      CincoWhyScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)), // 4
-      HistorialCincoWhyScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)), // 5
-      RevisionCincoWhyScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)), // 6 <-- Nueva Pantalla
+      DashboardOlScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)),
+      ReportesDiariosScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)),
+      AccionesOlScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)),
+      AbordajesFmsScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)),
+      CincoWhyScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)),
+      HistorialCincoWhyScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)),
+      RevisionCincoWhyScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)),
+      AccionesCincoWhyScreen(onToggleSidebar: () => _toggleSidebar(isMobile)),
     ];
 
     return Scaffold(
@@ -203,7 +204,8 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                       children: [
                         _buildSidebarItem(index: 4, icon: Icons.post_add_rounded, label: 'Formulario 5 Why', isMobile: isMobile),
                         _buildSidebarItem(index: 5, icon: Icons.history_rounded, label: 'Historial 5 Why', isMobile: isMobile),
-                        _buildSidebarItem(index: 6, icon: Icons.fact_check_rounded, label: 'Revisión 5 Why', isMobile: isMobile), // <-- Nuevo Enlace
+                        _buildSidebarItem(index: 6, icon: Icons.fact_check_rounded, label: 'Revisión 5 Why', isMobile: isMobile),
+                        _buildSidebarItem(index: 7, icon: Icons.task_alt_rounded, label: 'Acciones 5 Why', isMobile: isMobile),
                       ],
                     ),
                   ),
