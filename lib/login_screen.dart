@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'api_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -35,18 +36,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       // 🎯 Conexión a la tabla 'rutina_ol.rutina_usuario'
-      final usuariosBD = await ApiService.consultar('rutina_ol', 'rutina_usuario');
-
-      final usuarioEncontrado = usuariosBD.firstWhere(
-            (u) {
-          if (u is! Map) return false;
-          String userBD = u['usuario']?.toString().trim().toLowerCase() ?? '';
-          String passBD = u['contrasena']?.toString().trim() ?? u['contraseña']?.toString().trim() ?? '';
-
-          return userBD == usuarioTxt.toLowerCase() && passBD == passwordTxt;
-        },
-        orElse: () => null,
+      final usuariosBD = await ApiService.consultar(
+        'rutina_ol',
+        'rutina_usuario',
       );
+
+      final usuarioEncontrado = usuariosBD.firstWhere((u) {
+        if (u is! Map) return false;
+        String userBD = u['usuario']?.toString().trim().toLowerCase() ?? '';
+        String passBD =
+            u['contrasena']?.toString().trim() ??
+            u['contraseña']?.toString().trim() ??
+            '';
+
+        return userBD == usuarioTxt.toLowerCase() && passBD == passwordTxt;
+      }, orElse: () => null);
 
       if (usuarioEncontrado != null) {
         widget.onLoginSuccess(Map<String, dynamic>.from(usuarioEncontrado));
@@ -74,7 +78,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // 🔑 MODAL PARA CAMBIAR CONTRASEÑA
   void _abrirModalCambiarPassword() {
-    final TextEditingController userCambioCtrl = TextEditingController(text: _usuarioCtrl.text.trim());
+    final TextEditingController userCambioCtrl = TextEditingController(
+      text: _usuarioCtrl.text.trim(),
+    );
     final TextEditingController passActualCtrl = TextEditingController();
     final TextEditingController passNuevaCtrl = TextEditingController();
     final TextEditingController passConfirmCtrl = TextEditingController();
@@ -91,7 +97,9 @@ class _LoginScreenState extends State<LoginScreen> {
         return StatefulBuilder(
           builder: (dialogContext, setModalState) {
             return Dialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Container(
                 width: 400,
                 padding: const EdgeInsets.all(24),
@@ -109,11 +117,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         children: [
                           const Row(
                             children: [
-                              Icon(Icons.key_rounded, color: Color(0xFF0D47A1), size: 22),
+                              Icon(
+                                Icons.key_rounded,
+                                color: Color(0xFF0D47A1),
+                                size: 22,
+                              ),
                               SizedBox(width: 8),
                               Text(
                                 'Cambiar Contraseña',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
                               ),
                             ],
                           ),
@@ -127,22 +143,46 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 12),
 
                       // Campo Usuario / Cédula
-                      const Text('Usuario / Cédula *', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                      const Text(
+                        'Usuario / Cédula *',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       TextField(
                         controller: userCambioCtrl,
                         style: const TextStyle(fontSize: 12),
                         decoration: InputDecoration(
                           hintText: 'Ej. 1078349495',
-                          prefixIcon: const Icon(Icons.person_outline, size: 16, color: Color(0xFF0D47A1)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: Colors.grey.shade300)),
+                          prefixIcon: const Icon(
+                            Icons.person_outline,
+                            size: 16,
+                            color: Color(0xFF0D47A1),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 10,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
 
                       // Contraseña Actual
-                      const Text('Contraseña Actual *', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                      const Text(
+                        'Contraseña Actual *',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       TextField(
                         controller: passActualCtrl,
@@ -150,19 +190,43 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: const TextStyle(fontSize: 12),
                         decoration: InputDecoration(
                           hintText: '••••••••',
-                          prefixIcon: const Icon(Icons.lock_clock_outlined, size: 16, color: Color(0xFF0D47A1)),
-                          suffixIcon: IconButton(
-                            icon: Icon(ocultarP1 ? Icons.visibility_off : Icons.visibility, size: 16, color: Colors.grey),
-                            onPressed: () => setModalState(() => ocultarP1 = !ocultarP1),
+                          prefixIcon: const Icon(
+                            Icons.lock_clock_outlined,
+                            size: 16,
+                            color: Color(0xFF0D47A1),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: Colors.grey.shade300)),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              ocultarP1
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              size: 16,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () =>
+                                setModalState(() => ocultarP1 = !ocultarP1),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 10,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
 
                       // Nueva Contraseña
-                      const Text('Nueva Contraseña *', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                      const Text(
+                        'Nueva Contraseña *',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       TextField(
                         controller: passNuevaCtrl,
@@ -170,19 +234,43 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: const TextStyle(fontSize: 12),
                         decoration: InputDecoration(
                           hintText: 'Nueva clave',
-                          prefixIcon: const Icon(Icons.lock_outline, size: 16, color: Color(0xFF0D47A1)),
-                          suffixIcon: IconButton(
-                            icon: Icon(ocultarP2 ? Icons.visibility_off : Icons.visibility, size: 16, color: Colors.grey),
-                            onPressed: () => setModalState(() => ocultarP2 = !ocultarP2),
+                          prefixIcon: const Icon(
+                            Icons.lock_outline,
+                            size: 16,
+                            color: Color(0xFF0D47A1),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: Colors.grey.shade300)),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              ocultarP2
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              size: 16,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () =>
+                                setModalState(() => ocultarP2 = !ocultarP2),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 10,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
 
                       // Confirmar Nueva Contraseña
-                      const Text('Confirmar Nueva Contraseña *', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                      const Text(
+                        'Confirmar Nueva Contraseña *',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       TextField(
                         controller: passConfirmCtrl,
@@ -190,13 +278,30 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: const TextStyle(fontSize: 12),
                         decoration: InputDecoration(
                           hintText: 'Repita la nueva clave',
-                          prefixIcon: const Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF0D47A1)),
-                          suffixIcon: IconButton(
-                            icon: Icon(ocultarP3 ? Icons.visibility_off : Icons.visibility, size: 16, color: Colors.grey),
-                            onPressed: () => setModalState(() => ocultarP3 = !ocultarP3),
+                          prefixIcon: const Icon(
+                            Icons.check_circle_outline,
+                            size: 16,
+                            color: Color(0xFF0D47A1),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: Colors.grey.shade300)),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              ocultarP3
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              size: 16,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () =>
+                                setModalState(() => ocultarP3 = !ocultarP3),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 10,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -206,89 +311,540 @@ class _LoginScreenState extends State<LoginScreen> {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           TextButton(
-                            onPressed: guardando ? null : () => Navigator.pop(dialogContext),
-                            child: const Text('Cancelar', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                            onPressed: guardando
+                                ? null
+                                : () => Navigator.pop(dialogContext),
+                            child: const Text(
+                              'Cancelar',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton(
                             onPressed: guardando
                                 ? null
                                 : () async {
-                              final userTxt = userCambioCtrl.text.trim();
-                              final pAct = passActualCtrl.text.trim();
-                              final pNueva = passNuevaCtrl.text.trim();
-                              final pConf = passConfirmCtrl.text.trim();
+                                    final userTxt = userCambioCtrl.text.trim();
+                                    final pAct = passActualCtrl.text.trim();
+                                    final pNueva = passNuevaCtrl.text.trim();
+                                    final pConf = passConfirmCtrl.text.trim();
 
-                              if (userTxt.isEmpty || pAct.isEmpty || pNueva.isEmpty || pConf.isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('⚠️ Llene todos los campos.'), backgroundColor: Colors.orange),
-                                );
-                                return;
-                              }
+                                    if (userTxt.isEmpty ||
+                                        pAct.isEmpty ||
+                                        pNueva.isEmpty ||
+                                        pConf.isEmpty) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            '⚠️ Llene todos los campos.',
+                                          ),
+                                          backgroundColor: Colors.orange,
+                                        ),
+                                      );
+                                      return;
+                                    }
 
-                              if (pNueva != pConf) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('⚠️ Las nuevas contraseñas no coinciden.'), backgroundColor: Colors.orange),
-                                );
-                                return;
-                              }
+                                    if (pNueva != pConf) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            '⚠️ Las nuevas contraseñas no coinciden.',
+                                          ),
+                                          backgroundColor: Colors.orange,
+                                        ),
+                                      );
+                                      return;
+                                    }
 
-                              setModalState(() => guardando = true);
+                                    setModalState(() => guardando = true);
 
-                              try {
-                                final usuariosBD = await ApiService.consultar('rutina_ol', 'rutina_usuario');
+                                    try {
+                                      final usuariosBD =
+                                          await ApiService.consultar(
+                                            'rutina_ol',
+                                            'rutina_usuario',
+                                          );
 
-                                final uEncontrado = usuariosBD.firstWhere(
-                                      (u) {
-                                    if (u is! Map) return false;
-                                    String userBD = u['usuario']?.toString().trim().toLowerCase() ?? '';
-                                    String passBD = u['contrasena']?.toString().trim() ?? u['contraseña']?.toString().trim() ?? '';
-                                    return userBD == userTxt.toLowerCase() && passBD == pAct;
+                                      final uEncontrado = usuariosBD.firstWhere(
+                                        (u) {
+                                          if (u is! Map) return false;
+                                          String userBD =
+                                              u['usuario']
+                                                  ?.toString()
+                                                  .trim()
+                                                  .toLowerCase() ??
+                                              '';
+                                          String passBD =
+                                              u['contrasena']
+                                                  ?.toString()
+                                                  .trim() ??
+                                              u['contraseña']
+                                                  ?.toString()
+                                                  .trim() ??
+                                              '';
+                                          return userBD ==
+                                                  userTxt.toLowerCase() &&
+                                              passBD == pAct;
+                                        },
+                                        orElse: () => null,
+                                      );
+
+                                      if (uEncontrado == null) {
+                                        setModalState(() => guardando = false);
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              '❌ Usuario o contraseña actual incorrectos.',
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                        return;
+                                      }
+
+                                      final idUsuario = uEncontrado['id']
+                                          ?.toString();
+
+                                      await ApiService.actualizar(
+                                        'rutina_ol',
+                                        'rutina_usuario',
+                                        'id',
+                                        idUsuario,
+                                        {'contrasena': pNueva},
+                                      );
+
+                                      if (mounted) {
+                                        Navigator.pop(dialogContext);
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              '✅ Contraseña actualizada con éxito.',
+                                            ),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                        _usuarioCtrl.text = userTxt;
+                                        _passwordCtrl.text = pNueva;
+                                      }
+                                    } catch (e) {
+                                      setModalState(() => guardando = false);
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            '❌ Error al actualizar: $e',
+                                          ),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
                                   },
-                                  orElse: () => null,
-                                );
-
-                                if (uEncontrado == null) {
-                                  setModalState(() => guardando = false);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('❌ Usuario o contraseña actual incorrectos.'), backgroundColor: Colors.red),
-                                  );
-                                  return;
-                                }
-
-                                final idUsuario = uEncontrado['id']?.toString();
-
-                                await ApiService.actualizar('rutina_ol', 'rutina_usuario', 'id', idUsuario, {
-                                  'contrasena': pNueva,
-                                });
-
-                                if (mounted) {
-                                  Navigator.pop(dialogContext);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('✅ Contraseña actualizada con éxito.'), backgroundColor: Colors.green),
-                                  );
-                                  _usuarioCtrl.text = userTxt;
-                                  _passwordCtrl.text = pNueva;
-                                }
-                              } catch (e) {
-                                setModalState(() => guardando = false);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('❌ Error al actualizar: $e'), backgroundColor: Colors.red),
-                                );
-                              }
-                            },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0D47A1),
                               foregroundColor: Colors.white,
                               elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
                             ),
                             child: guardando
-                                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                : const Text('Actualizar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Actualizar',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                           ),
                         ],
-                      )
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // 👤 MODAL PARA REGISTRAR NUEVO USUARIO OL
+  void _abrirModalRegistro() {
+    final TextEditingController nombreCtrl = TextEditingController();
+    final TextEditingController userRegistroCtrl = TextEditingController();
+    final TextEditingController passRegistroCtrl = TextEditingController();
+
+    bool guardando = false;
+    bool ocultarP = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (dialogContext, setModalState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Container(
+                width: 400,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(
+                                Icons.person_add_alt_1_rounded,
+                                color: Color(0xFF0D47A1),
+                                size: 22,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Registrar Usuario',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 20),
+                            onPressed: () => Navigator.pop(dialogContext),
+                          ),
+                        ],
+                      ),
+                      const Divider(),
+                      const SizedBox(height: 12),
+
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE3F2FD),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF90CAF9)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Color(0xFF0D47A1),
+                              size: 16,
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Solo se pueden registrar usuarios pertenecientes a la empresa OL.',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF0D47A1),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Campo Nombre Completo
+                      const Text(
+                        'Nombre Completo *',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      TextField(
+                        controller: nombreCtrl,
+                        style: const TextStyle(fontSize: 12),
+                        decoration: InputDecoration(
+                          hintText: 'Ej. Juan Pérez',
+                          prefixIcon: const Icon(
+                            Icons.badge_outlined,
+                            size: 16,
+                            color: Color(0xFF0D47A1),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 10,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Campo Usuario / Cédula
+                      const Text(
+                        'Usuario / Cédula *',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      TextField(
+                        controller: userRegistroCtrl,
+                        style: const TextStyle(fontSize: 12),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        decoration: InputDecoration(
+                          hintText: 'Ej. 1078349495',
+                          prefixIcon: const Icon(
+                            Icons.person_outline,
+                            size: 16,
+                            color: Color(0xFF0D47A1),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 10,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Contraseña
+                      const Text(
+                        'Contraseña *',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      TextField(
+                        controller: passRegistroCtrl,
+                        obscureText: ocultarP,
+                        style: const TextStyle(fontSize: 12),
+                        decoration: InputDecoration(
+                          hintText: '••••••••',
+                          prefixIcon: const Icon(
+                            Icons.lock_outline,
+                            size: 16,
+                            color: Color(0xFF0D47A1),
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              ocultarP
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              size: 16,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () =>
+                                setModalState(() => ocultarP = !ocultarP),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 10,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Botones de acción
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: guardando
+                                ? null
+                                : () => Navigator.pop(dialogContext),
+                            child: const Text(
+                              'Cancelar',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: guardando
+                                ? null
+                                : () async {
+                                    final nombre = nombreCtrl.text.trim();
+                                    final userTxt = userRegistroCtrl.text
+                                        .trim();
+                                    final passTxt = passRegistroCtrl.text
+                                        .trim();
+
+                                    if (nombre.isEmpty ||
+                                        userTxt.isEmpty ||
+                                        passTxt.isEmpty) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            '⚠️ Llene todos los campos.',
+                                          ),
+                                          backgroundColor: Colors.orange,
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    setModalState(() => guardando = true);
+
+                                    try {
+                                      final usuariosBD =
+                                          await ApiService.consultar(
+                                            'rutina_ol',
+                                            'rutina_usuario',
+                                          );
+
+                                      final maxId = usuariosBD.isEmpty
+                                          ? 0
+                                          : usuariosBD
+                                                .map(
+                                                  (u) =>
+                                                      int.tryParse(
+                                                        u['id']?.toString() ??
+                                                            '0',
+                                                      ) ??
+                                                      0,
+                                                )
+                                                .reduce(
+                                                  (a, b) => a > b ? a : b,
+                                                );
+
+                                      final nuevoId = maxId + 1;
+
+                                      Map<String, dynamic> nuevoUsuario = {
+                                        'id': nuevoId,
+                                        'nombre': nombre.toUpperCase(),
+                                        'usuario': userTxt,
+                                        'contrasena': passTxt,
+                                        'empresa': 'OL',
+                                      };
+
+                                      final insercionExitosa =
+                                          await ApiService.insertar(
+                                            'rutina_ol',
+                                            'rutina_usuario',
+                                            nuevoUsuario,
+                                          );
+
+                                      if (insercionExitosa) {
+                                        if (mounted) {
+                                          Navigator.pop(dialogContext);
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                '✅ Usuario OL registrado con éxito.',
+                                              ),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                          _usuarioCtrl.text = userTxt;
+                                          _passwordCtrl.text = passTxt;
+                                        }
+                                      } else {
+                                        setModalState(() => guardando = false);
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              '❌ Error al registrar usuario.',
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      setModalState(() => guardando = false);
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            '❌ Error en el servidor: $e',
+                                          ),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0D47A1),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                            child: guardando
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Registrar',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -316,10 +872,10 @@ class _LoginScreenState extends State<LoginScreen> {
               border: Border.all(color: Colors.grey.shade300),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.04),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
-                )
+                ),
               ],
             ),
             child: Column(
@@ -357,17 +913,37 @@ class _LoginScreenState extends State<LoginScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Usuario / Cédula', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                    const Text(
+                      'Usuario / Cédula',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     TextField(
                       controller: _usuarioCtrl,
                       style: const TextStyle(fontSize: 13),
                       decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.person_outline, size: 18, color: Color(0xFF0D47A1)),
+                        prefixIcon: const Icon(
+                          Icons.person_outline,
+                          size: 18,
+                          color: Color(0xFF0D47A1),
+                        ),
                         hintText: 'Ej. 1078349495',
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
                       ),
                     ),
                   ],
@@ -378,7 +954,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Contraseña', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                    const Text(
+                      'Contraseña',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     TextField(
                       controller: _passwordCtrl,
@@ -386,35 +969,83 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: const TextStyle(fontSize: 13),
                       onSubmitted: (_) => _iniciarSesion(),
                       decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.lock_outline, size: 18, color: Color(0xFF0D47A1)),
+                        prefixIcon: const Icon(
+                          Icons.lock_outline,
+                          size: 18,
+                          color: Color(0xFF0D47A1),
+                        ),
                         suffixIcon: IconButton(
-                          icon: Icon(_ocultarPassword ? Icons.visibility_off : Icons.visibility, size: 18, color: Colors.grey),
-                          onPressed: () => setState(() => _ocultarPassword = !_ocultarPassword),
+                          icon: Icon(
+                            _ocultarPassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            size: 18,
+                            color: Colors.grey,
+                          ),
+                          onPressed: () => setState(
+                            () => _ocultarPassword = !_ocultarPassword,
+                          ),
                         ),
                         hintText: '••••••••',
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
 
-                // 🔑 BOTÓN CAMBIAR CONTRASEÑA
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: InkWell(
-                    onTap: _abrirModalCambiarPassword,
-                    borderRadius: BorderRadius.circular(4),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-                      child: Text(
-                        '🔑 ¿Deseas cambiar tu contraseña?',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF0D47A1), fontWeight: FontWeight.w600),
+                // 🔑 BOTÓN CAMBIAR CONTRASEÑA Y REGISTRO
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    InkWell(
+                      onTap: _abrirModalRegistro,
+                      borderRadius: BorderRadius.circular(4),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: 4,
+                          horizontal: 2,
+                        ),
+                        child: Text(
+                          '👤 Registrarse',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF0D47A1),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    InkWell(
+                      onTap: _abrirModalCambiarPassword,
+                      borderRadius: BorderRadius.circular(4),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: 4,
+                          horizontal: 2,
+                        ),
+                        child: Text(
+                          '🔑 Cambiar contraseña',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF0D47A1),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 20),
 
@@ -427,12 +1058,28 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF0D47A1),
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       elevation: 0,
                     ),
                     child: _cargando
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('INICIAR SESIÓN', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'INICIAR SESIÓN',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
                   ),
                 ),
               ],

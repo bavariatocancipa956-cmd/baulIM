@@ -66,7 +66,10 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
   final double wFechaCierre = 110;
   final double wEstado = 100;
 
-  final BorderSide _bordeTabla = BorderSide(color: Colors.grey.shade300, width: 1);
+  final BorderSide _bordeTabla = BorderSide(
+    color: Colors.grey.shade300,
+    width: 1,
+  );
 
   @override
   void initState() {
@@ -104,18 +107,22 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
         for (int i = 1; i <= 4; i++) {
           String? tipoAccion = row['accion_$i'];
           if (tipoAccion != null && tipoAccion.toString().trim().isNotEmpty) {
-            extraidas.add(AccionVisual(
-              id5Why: id,
-              numeroAccion: i,
-              fecha: fechaFormat,
-              area: area,
-              pi: pi,
-              tipoAccion: tipoAccion,
-              descripcion: row['descripcion_$i'] ?? 'Sin descripción',
-              responsable: (row['responsable_$i'] ?? 'SIN ASIGNAR').toString().toUpperCase(),
-              fechaCierre: _formatearFecha(row['fecha_cierre_$i']),
-              estado: row['estado_accion$i'] ?? 'Pendiente',
-            ));
+            extraidas.add(
+              AccionVisual(
+                id5Why: id,
+                numeroAccion: i,
+                fecha: fechaFormat,
+                area: area,
+                pi: pi,
+                tipoAccion: tipoAccion,
+                descripcion: row['descripcion_$i'] ?? 'Sin descripción',
+                responsable: (row['responsable_$i'] ?? 'SIN ASIGNAR')
+                    .toString()
+                    .toUpperCase(),
+                fechaCierre: _formatearFecha(row['fecha_cierre_$i']),
+                estado: row['estado_accion$i'] ?? 'Pendiente',
+              ),
+            );
           }
         }
       }
@@ -125,9 +132,11 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
       _todasLasAcciones = extraidas;
 
       _aplicarFiltros();
-
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
     } finally {
       if (mounted) setState(() => _cargando = false);
     }
@@ -138,8 +147,10 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
       bool coincideFecha = _filtroFecha == null || a.fecha == _filtroFecha;
 
       bool coincideEstado = true;
-      if (_filtroEstado == 'Pendientes') coincideEstado = a.estado.toLowerCase() != 'concluida';
-      if (_filtroEstado == 'Concluidas') coincideEstado = a.estado.toLowerCase() == 'concluida';
+      if (_filtroEstado == 'Pendientes')
+        coincideEstado = a.estado.toLowerCase() != 'concluida';
+      if (_filtroEstado == 'Concluidas')
+        coincideEstado = a.estado.toLowerCase() == 'concluida';
 
       bool coincideArea = _filtroArea == 'Todas' || a.area == _filtroArea;
       bool coincidePi = _filtroPi == 'Todos' || a.pi == _filtroPi;
@@ -187,20 +198,33 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: const Color(0xFF0A2540),
-        leading: IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: widget.onToggleSidebar),
-        title: const Text('Acciones del 5 Why', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        leading: IconButton(
+          icon: const Icon(Icons.menu, color: Colors.white),
+          onPressed: widget.onToggleSidebar,
+        ),
+        title: const Text(
+          'Acciones del 5 Why',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh, color: Colors.white), onPressed: _cargarAcciones)
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _cargarAcciones,
+          ),
         ],
       ),
       body: _cargando
           ? const Center(child: CircularProgressIndicator())
           : Column(
-        children: [
-          _buildBarraFiltrosSuperior(),
-          Expanded(child: _buildTablaCustom()),
-        ],
-      ),
+              children: [
+                _buildBarraFiltrosSuperior(),
+                Expanded(child: _buildTablaCustom()),
+              ],
+            ),
     );
   }
 
@@ -218,19 +242,41 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Fecha', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black54)),
+                const Text(
+                  'Fecha',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black54,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 InkWell(
                   onTap: _seleccionarFechaFiltro,
                   child: Container(
                     height: 38,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6)),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(_filtroFecha ?? 'DD/MM/YYYY', style: TextStyle(fontSize: 13, color: _filtroFecha == null ? Colors.black38 : Colors.black87)),
-                        const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                        Text(
+                          _filtroFecha ?? 'DD/MM/YYYY',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: _filtroFecha == null
+                                ? Colors.black38
+                                : Colors.black87,
+                          ),
+                        ),
+                        const Icon(
+                          Icons.calendar_today,
+                          size: 16,
+                          color: Colors.grey,
+                        ),
                       ],
                     ),
                   ),
@@ -240,10 +286,15 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: _buildFiltroDropdown('Estado', _filtroEstado, ['Todos', 'Pendientes', 'Concluidas'], (v) {
-              setState(() => _filtroEstado = v!);
-              _aplicarFiltros();
-            }),
+            child: _buildFiltroDropdown(
+              'Estado',
+              _filtroEstado,
+              ['Todos', 'Pendientes', 'Concluidas'],
+              (v) {
+                setState(() => _filtroEstado = v!);
+                _aplicarFiltros();
+              },
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -264,9 +315,18 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
             height: 38,
             child: TextButton.icon(
               onPressed: _limpiarFiltros,
-              style: TextButton.styleFrom(backgroundColor: Colors.red.shade50, foregroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.red.shade50,
+                foregroundColor: Colors.red,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
               icon: const Icon(Icons.clear_all, size: 18),
-              label: const Text('Limpiar', style: TextStyle(fontWeight: FontWeight.bold)),
+              label: const Text(
+                'Limpiar',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ),
         ],
@@ -274,24 +334,53 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
     );
   }
 
-  Widget _buildFiltroDropdown(String titulo, String valor, List<String> opciones, Function(String?) onChanged) {
+  Widget _buildFiltroDropdown(
+    String titulo,
+    String valor,
+    List<String> opciones,
+    Function(String?) onChanged,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(titulo, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black54)),
+        Text(
+          titulo,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: Colors.black54,
+          ),
+        ),
         const SizedBox(height: 4),
         SizedBox(
           height: 38,
           child: DropdownButtonFormField<String>(
-            value: opciones.contains(valor) ? valor : opciones.first,
+            initialValue: opciones.contains(valor) ? valor : opciones.first,
             decoration: InputDecoration(
-              isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: Colors.grey.shade300)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: Colors.grey.shade300)),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
             ),
             icon: const Icon(Icons.keyboard_arrow_down, size: 18),
             style: const TextStyle(fontSize: 13, color: Colors.black87),
-            items: opciones.map((e) => DropdownMenuItem(value: e, child: Text(e, overflow: TextOverflow.ellipsis))).toList(),
+            items: opciones
+                .map(
+                  (e) => DropdownMenuItem(
+                    value: e,
+                    child: Text(e, overflow: TextOverflow.ellipsis),
+                  ),
+                )
+                .toList(),
             onChanged: onChanged,
           ),
         ),
@@ -307,7 +396,12 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
       return Container(
         color: Colors.white,
         width: double.infinity,
-        child: const Center(child: Text('No se encontraron acciones con los filtros aplicados', style: TextStyle(color: Colors.black54))),
+        child: const Center(
+          child: Text(
+            'No se encontraron acciones con los filtros aplicados',
+            style: TextStyle(color: Colors.black54),
+          ),
+        ),
       );
     }
 
@@ -326,7 +420,9 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildCabeceraTabla(),
-                ..._accionesAgrupadas.entries.map((entry) => _buildFilaAgrupada(entry.value)).toList(),
+                ..._accionesAgrupadas.entries.map(
+                  (entry) => _buildFilaAgrupada(entry.value),
+                ),
               ],
             ),
           ),
@@ -358,17 +454,47 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildCeldaCuerpo(Text(primera.fecha, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Colors.black87)), wFecha),
-          _buildCeldaCuerpo(Text(primera.area, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Colors.black87)), wArea),
-          _buildCeldaCuerpo(Text(primera.pi, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Colors.black87)), wPi),
-          _buildCeldaCuerpo(const Icon(Icons.picture_as_pdf_rounded, color: Colors.redAccent, size: 22), wPdf),
+          _buildCeldaCuerpo(
+            Text(
+              primera.fecha,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: Colors.black87),
+            ),
+            wFecha,
+          ),
+          _buildCeldaCuerpo(
+            Text(
+              primera.area,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: Colors.black87),
+            ),
+            wArea,
+          ),
+          _buildCeldaCuerpo(
+            Text(
+              primera.pi,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: Colors.black87),
+            ),
+            wPi,
+          ),
+          _buildCeldaCuerpo(
+            const Icon(
+              Icons.picture_as_pdf_rounded,
+              color: Colors.redAccent,
+              size: 22,
+            ),
+            wPdf,
+          ),
 
           SizedBox(
             width: wTipo + wAccion + wResponsable + wFechaCierre + wEstado,
             child: Column(
-              children: grupo.map((accion) => _buildFilaAccion(accion)).toList(),
+              children: grupo
+                  .map((accion) => _buildFilaAccion(accion))
+                  .toList(),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -379,37 +505,83 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
 
     return Row(
       children: [
-        _buildCeldaCuerpo(Text(accion.tipoAccion, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Colors.black87)), wTipo),
-        _buildCeldaCuerpo(Text(accion.descripcion, style: const TextStyle(fontSize: 12, color: Colors.black87), maxLines: 4, overflow: TextOverflow.ellipsis), wAccion, align: Alignment.centerLeft),
-        _buildCeldaCuerpo(Text(accion.responsable, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Colors.black87)), wResponsable),
-        _buildCeldaCuerpo(Text(accion.fechaCierre, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Colors.black87)), wFechaCierre),
         _buildCeldaCuerpo(
-            _buildBadgeEstado(accion.estado.toUpperCase(), completado),
-            wEstado
+          Text(
+            accion.tipoAccion,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12, color: Colors.black87),
+          ),
+          wTipo,
+        ),
+        _buildCeldaCuerpo(
+          Text(
+            accion.descripcion,
+            style: const TextStyle(fontSize: 12, color: Colors.black87),
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+          ),
+          wAccion,
+          align: Alignment.centerLeft,
+        ),
+        _buildCeldaCuerpo(
+          Text(
+            accion.responsable,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12, color: Colors.black87),
+          ),
+          wResponsable,
+        ),
+        _buildCeldaCuerpo(
+          Text(
+            accion.fechaCierre,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12, color: Colors.black87),
+          ),
+          wFechaCierre,
+        ),
+        _buildCeldaCuerpo(
+          _buildBadgeEstado(accion.estado.toUpperCase(), completado),
+          wEstado,
         ),
       ],
     );
   }
 
-  Widget _buildCeldaCabecera(String texto, double width, {Alignment align = Alignment.center}) {
+  Widget _buildCeldaCabecera(
+    String texto,
+    double width, {
+    Alignment align = Alignment.center,
+  }) {
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
       decoration: BoxDecoration(
-          color: const Color(0xFFF1F5F9),
-          border: Border(right: _bordeTabla, bottom: _bordeTabla)
+        color: const Color(0xFFF1F5F9),
+        border: Border(right: _bordeTabla, bottom: _bordeTabla),
       ),
       alignment: align,
-      child: Text(texto, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF475569))),
+      child: Text(
+        texto,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF475569),
+        ),
+      ),
     );
   }
 
-  Widget _buildCeldaCuerpo(Widget hijo, double width, {Alignment align = Alignment.center}) {
+  Widget _buildCeldaCuerpo(
+    Widget hijo,
+    double width, {
+    Alignment align = Alignment.center,
+  }) {
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
-          border: Border(right: _bordeTabla, bottom: _bordeTabla)
+        border: Border(right: _bordeTabla, bottom: _bordeTabla),
       ),
       alignment: align,
       child: hijo,
@@ -418,17 +590,28 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
 
   Widget _buildBadgeEstado(String text, bool isSuccess) {
     Color colorFondo = isSuccess ? Colors.green.shade50 : Colors.orange.shade50;
-    Color colorTexto = isSuccess ? Colors.green.shade700 : Colors.orange.shade800;
-    Color colorBorde = isSuccess ? Colors.green.shade300 : Colors.orange.shade300;
+    Color colorTexto = isSuccess
+        ? Colors.green.shade700
+        : Colors.orange.shade800;
+    Color colorBorde = isSuccess
+        ? Colors.green.shade300
+        : Colors.orange.shade300;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-          color: colorFondo,
-          border: Border.all(color: colorBorde, width: 1),
-          borderRadius: BorderRadius.circular(4)
+        color: colorFondo,
+        border: Border.all(color: colorBorde, width: 1),
+        borderRadius: BorderRadius.circular(4),
       ),
-      child: Text(text, style: TextStyle(color: colorTexto, fontSize: 11, fontWeight: FontWeight.w800)),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: colorTexto,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
 }

@@ -70,7 +70,12 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
           fila.forEach((key, val) => mapa[key.toString().toLowerCase()] = val);
           datosProcesados.add(mapa);
 
-          String d = (mapa['dueño']?.toString() ?? mapa['dueno']?.toString() ?? 'SIN ASIGNAR').trim().toUpperCase();
+          String d =
+              (mapa['dueño']?.toString() ??
+                      mapa['dueno']?.toString() ??
+                      'SIN ASIGNAR')
+                  .trim()
+                  .toUpperCase();
           if (d.isNotEmpty) duenosSet.add(d);
         }
       }
@@ -111,12 +116,21 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
     Map<String, Map<String, int>> matrizTemp = {};
 
     for (var row in _todasLasAcciones) {
-      String dueno = (row['dueño']?.toString() ?? row['dueno']?.toString() ?? 'SIN ASIGNAR').trim().toUpperCase();
+      String dueno =
+          (row['dueño']?.toString() ??
+                  row['dueno']?.toString() ??
+                  'SIN ASIGNAR')
+              .trim()
+              .toUpperCase();
       if (dueno.isEmpty) dueno = 'SIN ASIGNAR';
 
       if (_duenoSel != 'Todos' && dueno != _duenoSel) continue;
 
-      String rawFecha = row['fecha_creacion']?.toString() ?? row['registr']?.toString() ?? row['fecha']?.toString() ?? '';
+      String rawFecha =
+          row['fecha_creacion']?.toString() ??
+          row['registr']?.toString() ??
+          row['fecha']?.toString() ??
+          '';
       String fechaStr = _extraerFechaCorta(rawFecha);
 
       if (fechaStr != '-') {
@@ -134,7 +148,7 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
 
     List<String> fechasOrdenadas = fechasDetectadas.toList()..sort();
     var matrizOrdenada = Map.fromEntries(
-        matrizTemp.entries.toList()..sort((a, b) => a.key.compareTo(b.key))
+      matrizTemp.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
     );
 
     int totalAccionesG = 0;
@@ -159,15 +173,19 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
         conteoDatosG++;
       }
 
-      int promLider = fechasOrdenadas.isEmpty ? 0 : (sumaPctLider / fechasOrdenadas.length).round();
+      int promLider = fechasOrdenadas.isEmpty
+          ? 0
+          : (sumaPctLider / fechasOrdenadas.length).round();
       resumenPersonas.add({
         'dueno': dueno,
         'total': sumaTotalLider,
-        'cumplimiento': promLider
+        'cumplimiento': promLider,
       });
     }
 
-    int promGlobal = conteoDatosG == 0 ? 0 : (sumaPctGlobal / conteoDatosG).round();
+    int promGlobal = conteoDatosG == 0
+        ? 0
+        : (sumaPctGlobal / conteoDatosG).round();
 
     setState(() {
       _fechasColumnas = fechasOrdenadas;
@@ -182,7 +200,10 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
   void _exportarAExcel() {
     if (_fechasColumnas.isEmpty || _matrizDatos.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('⚠️ No hay datos para exportar.'), backgroundColor: Colors.orange),
+        const SnackBar(
+          content: Text('⚠️ No hay datos para exportar.'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
@@ -191,8 +212,12 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
 
     // 0. TABLAS DE RESUMEN SUPERIOR
     sb.writeln("RESUMEN GENERAL DE CUMPLIMIENTO");
-    sb.writeln("Total Acciones\tCumplimiento General\tDías Evaluados\tLíderes Activos");
-    sb.writeln("$_resumenTotalAcciones\t$_resumenCumplimientoGlobal%\t${_fechasColumnas.length}\t${_resumenPorPersona.length}");
+    sb.writeln(
+      "Total Acciones\tCumplimiento General\tDías Evaluados\tLíderes Activos",
+    );
+    sb.writeln(
+      "$_resumenTotalAcciones\t$_resumenCumplimientoGlobal%\t${_fechasColumnas.length}\t${_resumenPorPersona.length}",
+    );
     sb.writeln("");
 
     sb.writeln("RESUMEN DE CUMPLIMIENTO POR PERSONA");
@@ -262,7 +287,9 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
         totalesColumnaPct[f] = (totalesColumnaPct[f] ?? 0) + pct;
       }
 
-      int promLider = _fechasColumnas.isEmpty ? 0 : (sumaPctFila / _fechasColumnas.length).round();
+      int promLider = _fechasColumnas.isEmpty
+          ? 0
+          : (sumaPctFila / _fechasColumnas.length).round();
       sb.writeln("$promLider%");
       sumaPromediosLideres += promLider;
     }
@@ -270,11 +297,15 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
     sb.write("TOTAL PROMEDIO\t");
     int cantidadLideres = _matrizDatos.length;
     for (var f in _fechasColumnas) {
-      int promDia = cantidadLideres == 0 ? 0 : ((totalesColumnaPct[f] ?? 0) / cantidadLideres).round();
+      int promDia = cantidadLideres == 0
+          ? 0
+          : ((totalesColumnaPct[f] ?? 0) / cantidadLideres).round();
       sb.write("$promDia%\t");
     }
 
-    int granTotalPromedio = cantidadLideres == 0 ? 0 : (sumaPromediosLideres / cantidadLideres).round();
+    int granTotalPromedio = cantidadLideres == 0
+        ? 0
+        : (sumaPromediosLideres / cantidadLideres).round();
     sb.writeln("$granTotalPromedio%");
 
     Clipboard.setData(ClipboardData(text: sb.toString()));
@@ -297,28 +328,52 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
     });
   }
 
-  void _abrirModalBuscador(String titulo, List<String> opciones, String seleccionActual, Function(String) onSelect) {
+  void _abrirModalBuscador(
+    String titulo,
+    List<String> opciones,
+    String seleccionActual,
+    Function(String) onSelect,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (ctx) {
         String filtro = "";
         return StatefulBuilder(
           builder: (context, setBuscadorState) {
-            final listaFiltrada = opciones.where((n) => n.toLowerCase().contains(filtro.toLowerCase())).toList();
+            final listaFiltrada = opciones
+                .where((n) => n.toLowerCase().contains(filtro.toLowerCase()))
+                .toList();
             return SafeArea(
               child: Padding(
-                padding: EdgeInsets.only(top: 16, left: 16, right: 16, bottom: MediaQuery.of(context).viewInsets.bottom + 16),
+                padding: EdgeInsets.only(
+                  top: 16,
+                  left: 16,
+                  right: 16,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Filtrar por $titulo', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0D47A1))),
-                        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                        Text(
+                          'Filtrar por $titulo',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0D47A1),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -326,25 +381,36 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
                       autofocus: true,
                       decoration: InputDecoration(
                         hintText: 'Buscar $titulo...',
-                        prefixIcon: const Icon(Icons.search, color: Color(0xFF0D47A1)),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Color(0xFF0D47A1),
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF8F9FA),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
                       ),
                       onChanged: (val) => setBuscadorState(() => filtro = val),
                     ),
                     const SizedBox(height: 12),
                     Container(
-                      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.4,
+                      ),
                       child: ListView.separated(
                         shrinkWrap: true,
                         itemCount: listaFiltrada.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final opcion = listaFiltrada[index];
                           return ListTile(
                             dense: true,
-                            title: Text(opcion, style: const TextStyle(fontSize: 12)),
+                            title: Text(
+                              opcion,
+                              style: const TextStyle(fontSize: 12),
+                            ),
                             onTap: () {
                               onSelect(opcion);
                               Navigator.pop(ctx);
@@ -368,7 +434,9 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
     if (_cargando) {
       return const Scaffold(
         backgroundColor: Color(0xFFF4F6F9),
-        body: Center(child: CircularProgressIndicator(color: Color(0xFF0D47A1))),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF0D47A1)),
+        ),
       );
     }
 
@@ -411,9 +479,20 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
                     children: [
                       const Row(
                         children: [
-                          Icon(Icons.grid_on_rounded, color: Color(0xFF0D47A1), size: 18),
+                          Icon(
+                            Icons.grid_on_rounded,
+                            color: Color(0xFF0D47A1),
+                            size: 18,
+                          ),
                           SizedBox(width: 8),
-                          Text('Análisis de Reportes Diarios', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87)),
+                          Text(
+                            'Análisis de Reportes Diarios',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
                         ],
                       ),
                       Tooltip(
@@ -422,23 +501,43 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
                           onTap: _exportarAExcel,
                           borderRadius: BorderRadius.circular(6),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1D6F42).withOpacity(0.1),
+                              color: const Color(
+                                0xFF1D6F42,
+                              ).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: const Color(0xFF1D6F42).withOpacity(0.3)),
+                              border: Border.all(
+                                color: const Color(
+                                  0xFF1D6F42,
+                                ).withValues(alpha: 0.3),
+                              ),
                             ),
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.file_download_outlined, size: 16, color: Color(0xFF1D6F42)),
+                                Icon(
+                                  Icons.file_download_outlined,
+                                  size: 16,
+                                  color: Color(0xFF1D6F42),
+                                ),
                                 SizedBox(width: 6),
-                                Text('Exportar a Excel', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1D6F42))),
+                                Text(
+                                  'Exportar a Excel',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1D6F42),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
                         ),
-                      )
+                      ),
                     ],
                   ),
                   const SizedBox(height: 20),
@@ -446,7 +545,12 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
                   if (_fechasColumnas.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(40.0),
-                      child: Center(child: Text('No hay datos registrados en las fechas seleccionadas.', style: TextStyle(color: Colors.grey))),
+                      child: Center(
+                        child: Text(
+                          'No hay datos registrados en las fechas seleccionadas.',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
                     )
                   else
                     Scrollbar(
@@ -461,15 +565,35 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('MATRIZ DE VOLUMEN (Cantidad de Acciones)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black54)),
+                              const Text(
+                                'MATRIZ DE VOLUMEN (Cantidad de Acciones)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black54,
+                                ),
+                              ),
                               const SizedBox(height: 8),
-                              _construirTablaSticky(esPorcentaje: false, scrollController: _scrollVerticalNum),
+                              _construirTablaSticky(
+                                esPorcentaje: false,
+                                scrollController: _scrollVerticalNum,
+                              ),
 
                               const SizedBox(height: 30),
 
-                              const Text('MATRIZ DE CUMPLIMIENTO (Meta: >= 3 acciones = 100%)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black54)),
+                              const Text(
+                                'MATRIZ DE CUMPLIMIENTO (Meta: >= 3 acciones = 100%)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black54,
+                                ),
+                              ),
                               const SizedBox(height: 8),
-                              _construirTablaSticky(esPorcentaje: true, scrollController: _scrollVerticalPct),
+                              _construirTablaSticky(
+                                esPorcentaje: true,
+                                scrollController: _scrollVerticalPct,
+                              ),
                             ],
                           ),
                         ),
@@ -487,41 +611,85 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
 
   Widget _buildKPIsGenerales() {
     return LayoutBuilder(
-        builder: (context, constraints) {
-          double ancho = constraints.maxWidth > 800
-              ? (constraints.maxWidth - 36) / 4
-              : (constraints.maxWidth - 12) / 2;
+      builder: (context, constraints) {
+        double ancho = constraints.maxWidth > 800
+            ? (constraints.maxWidth - 36) / 4
+            : (constraints.maxWidth - 12) / 2;
 
-          return Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              SizedBox(width: ancho, child: _buildKPICard('Total Acciones', '$_resumenTotalAcciones', const Color(0xFF43A047), Icons.format_list_bulleted_rounded)),
-              SizedBox(width: ancho, child: _buildKPICard('Cumplimiento Global', '$_resumenCumplimientoGlobal%', const Color(0xFF1E88E5), Icons.pie_chart_outline_rounded)),
-              SizedBox(width: ancho, child: _buildKPICard('Líderes Activos', '${_resumenPorPersona.length}', const Color(0xFFFFB300), Icons.people_alt_outlined)),
-              SizedBox(width: ancho, child: _buildKPICard('Días Evaluados', '${_fechasColumnas.length}', const Color(0xFF8E24AA), Icons.calendar_today_outlined)),
-            ],
-          );
-        }
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            SizedBox(
+              width: ancho,
+              child: _buildKPICard(
+                'Total Acciones',
+                '$_resumenTotalAcciones',
+                const Color(0xFF43A047),
+                Icons.format_list_bulleted_rounded,
+              ),
+            ),
+            SizedBox(
+              width: ancho,
+              child: _buildKPICard(
+                'Cumplimiento Global',
+                '$_resumenCumplimientoGlobal%',
+                const Color(0xFF1E88E5),
+                Icons.pie_chart_outline_rounded,
+              ),
+            ),
+            SizedBox(
+              width: ancho,
+              child: _buildKPICard(
+                'Líderes Activos',
+                '${_resumenPorPersona.length}',
+                const Color(0xFFFFB300),
+                Icons.people_alt_outlined,
+              ),
+            ),
+            SizedBox(
+              width: ancho,
+              child: _buildKPICard(
+                'Días Evaluados',
+                '${_fechasColumnas.length}',
+                const Color(0xFF8E24AA),
+                Icons.calendar_today_outlined,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildKPICard(String titulo, String valor, Color color, IconData icono) {
+  Widget _buildKPICard(
+    String titulo,
+    String valor,
+    Color color,
+    IconData icono,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
             child: Icon(icono, color: color, size: 22),
           ),
           const SizedBox(width: 12),
@@ -530,10 +698,21 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(valor, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+                Text(
+                  valor,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
                 Text(
                   titulo,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black54),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black54,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -548,14 +727,27 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade300)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('CUMPLIMIENTO PROMEDIO POR PERSONA', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0D47A1))),
+          const Text(
+            'CUMPLIMIENTO PROMEDIO POR PERSONA',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0D47A1),
+            ),
+          ),
           const SizedBox(height: 12),
           Container(
-            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300)),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+            ),
             child: Column(
               children: [
                 // HEADER
@@ -565,12 +757,17 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
                     1: FlexColumnWidth(1),
                     2: FlexColumnWidth(1),
                   },
-                  border: TableBorder(verticalInside: BorderSide(color: Colors.grey.shade300)),
+                  border: TableBorder(
+                    verticalInside: BorderSide(color: Colors.grey.shade300),
+                  ),
                   children: [
                     TableRow(
                       decoration: const BoxDecoration(color: Color(0xFFFAFAFA)),
                       children: [
-                        _celdaHeaderMaestro('Líder / Dueño', alignment: Alignment.centerLeft),
+                        _celdaHeaderMaestro(
+                          'Líder / Dueño',
+                          alignment: Alignment.centerLeft,
+                        ),
                         _celdaHeaderMaestro('Total Acciones'),
                         _celdaHeaderMaestro('Cumplimiento Promedio'),
                       ],
@@ -580,7 +777,11 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
                 // BODY (Scrollable)
                 Container(
                   constraints: const BoxConstraints(maxHeight: 400),
-                  decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.grey.shade300))),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: Colors.grey.shade300),
+                    ),
+                  ),
                   child: Scrollbar(
                     controller: _scrollVerticalResumen,
                     thumbVisibility: true,
@@ -593,16 +794,29 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
                           2: FlexColumnWidth(1),
                         },
                         border: TableBorder(
-                          verticalInside: BorderSide(color: Colors.grey.shade200),
-                          horizontalInside: BorderSide(color: Colors.grey.shade200),
+                          verticalInside: BorderSide(
+                            color: Colors.grey.shade200,
+                          ),
+                          horizontalInside: BorderSide(
+                            color: Colors.grey.shade200,
+                          ),
                         ),
                         children: _resumenPorPersona.map((p) {
                           return TableRow(
-                            decoration: const BoxDecoration(color: Colors.white),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                            ),
                             children: [
-                              _celdaTexto(p['dueno'], alignment: Alignment.centerLeft, isBold: true),
+                              _celdaTexto(
+                                p['dueno'],
+                                alignment: Alignment.centerLeft,
+                                isBold: true,
+                              ),
                               _celdaNumero(p['total']),
-                              _celdaNumero(p['cumplimiento'], esPorcentaje: true),
+                              _celdaNumero(
+                                p['cumplimiento'],
+                                esPorcentaje: true,
+                              ),
                             ],
                           );
                         }).toList(),
@@ -618,10 +832,11 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
     );
   }
 
-  Widget _construirTablaSticky({required bool esPorcentaje, required ScrollController scrollController}) {
-    Map<int, TableColumnWidth> colWidths = {
-      0: const FixedColumnWidth(200),
-    };
+  Widget _construirTablaSticky({
+    required bool esPorcentaje,
+    required ScrollController scrollController,
+  }) {
+    Map<int, TableColumnWidth> colWidths = {0: const FixedColumnWidth(200)};
     for (int i = 0; i < _fechasColumnas.length; i++) {
       colWidths[i + 1] = const FixedColumnWidth(70);
     }
@@ -656,9 +871,13 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
       }
 
       if (esPorcentaje) {
-        int promLider = _fechasColumnas.isEmpty ? 0 : (sumaPctFila / _fechasColumnas.length).round();
+        int promLider = _fechasColumnas.isEmpty
+            ? 0
+            : (sumaPctFila / _fechasColumnas.length).round();
         sumaPromedios += promLider;
-        celdasFila.add(_celdaNumero(promLider, isTotal: true, esPorcentaje: true));
+        celdasFila.add(
+          _celdaNumero(promLider, isTotal: true, esPorcentaje: true),
+        );
       } else {
         granTotalAcumulado += totalFila;
         celdasFila.add(_celdaNumero(totalFila, isTotal: true));
@@ -671,18 +890,27 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
     }).toList();
 
     return Container(
-      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300, width: 1)),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300, width: 1),
+      ),
       child: Column(
         children: [
           Table(
             columnWidths: colWidths,
-            border: TableBorder(verticalInside: BorderSide(color: Colors.grey.shade300)),
+            border: TableBorder(
+              verticalInside: BorderSide(color: Colors.grey.shade300),
+            ),
             children: [
               TableRow(
                 decoration: const BoxDecoration(color: Color(0xFFFAFAFA)),
                 children: [
-                  _celdaHeaderMaestro('Líderes', alignment: Alignment.centerLeft),
-                  ..._fechasColumnas.map((f) => _celdaHeaderMaestro(_formatearDiaMes(f))),
+                  _celdaHeaderMaestro(
+                    'Líderes',
+                    alignment: Alignment.centerLeft,
+                  ),
+                  ..._fechasColumnas.map(
+                    (f) => _celdaHeaderMaestro(_formatearDiaMes(f)),
+                  ),
                   _celdaHeaderMaestro('Total', isTotal: true),
                 ],
               ),
@@ -692,10 +920,10 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
           Container(
             constraints: const BoxConstraints(maxHeight: 400),
             decoration: BoxDecoration(
-                border: Border(
-                    top: BorderSide(color: Colors.grey.shade300),
-                    bottom: BorderSide(color: Colors.grey.shade300)
-                )
+              border: Border(
+                top: BorderSide(color: Colors.grey.shade300),
+                bottom: BorderSide(color: Colors.grey.shade300),
+              ),
             ),
             child: Scrollbar(
               controller: scrollController,
@@ -716,30 +944,51 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
 
           Table(
             columnWidths: colWidths,
-            border: TableBorder(verticalInside: BorderSide(color: Colors.grey.shade300)),
+            border: TableBorder(
+              verticalInside: BorderSide(color: Colors.grey.shade300),
+            ),
             children: [
               TableRow(
-                decoration: BoxDecoration(color: const Color(0xFF1E88E5).withOpacity(0.05)),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E88E5).withValues(alpha: 0.05),
+                ),
                 children: [
-                  _celdaTexto(esPorcentaje ? 'PROMEDIO' : 'TOTAL', alignment: Alignment.centerLeft, isBold: true, isTotal: true),
+                  _celdaTexto(
+                    esPorcentaje ? 'PROMEDIO' : 'TOTAL',
+                    alignment: Alignment.centerLeft,
+                    isBold: true,
+                    isTotal: true,
+                  ),
                   ..._fechasColumnas.map((f) {
                     if (esPorcentaje) {
-                      int promDia = _matrizDatos.isEmpty ? 0 : ((totalesColumnas[f] ?? 0) / _matrizDatos.length).round();
-                      return _celdaNumero(promDia, isTotal: true, esPorcentaje: true);
+                      int promDia = _matrizDatos.isEmpty
+                          ? 0
+                          : ((totalesColumnas[f] ?? 0) / _matrizDatos.length)
+                                .round();
+                      return _celdaNumero(
+                        promDia,
+                        isTotal: true,
+                        esPorcentaje: true,
+                      );
                     } else {
-                      return _celdaNumero(totalesColumnas[f] ?? 0, isTotal: true);
+                      return _celdaNumero(
+                        totalesColumnas[f] ?? 0,
+                        isTotal: true,
+                      );
                     }
                   }),
                   _celdaNumero(
-                      esPorcentaje
-                          ? (_matrizDatos.isEmpty ? 0 : (sumaPromedios / _matrizDatos.length).round())
-                          : granTotalAcumulado,
-                      isTotal: true,
-                      isGranTotal: true,
-                      esPorcentaje: esPorcentaje
+                    esPorcentaje
+                        ? (_matrizDatos.isEmpty
+                              ? 0
+                              : (sumaPromedios / _matrizDatos.length).round())
+                        : granTotalAcumulado,
+                    isTotal: true,
+                    isGranTotal: true,
+                    esPorcentaje: esPorcentaje,
                   ),
                 ],
-              )
+              ),
             ],
           ),
         ],
@@ -756,29 +1005,42 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
     }
   }
 
-  Widget _celdaHeaderMaestro(String texto, {Alignment alignment = Alignment.center, bool isTotal = false}) {
+  Widget _celdaHeaderMaestro(
+    String texto, {
+    Alignment alignment = Alignment.center,
+    bool isTotal = false,
+  }) {
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       alignment: alignment,
-      decoration: isTotal ? BoxDecoration(color: Colors.blueGrey.shade50) : null,
+      decoration: isTotal
+          ? BoxDecoration(color: Colors.blueGrey.shade50)
+          : null,
       child: Text(
         texto,
         style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: isTotal ? Colors.black87 : const Color(0xFF0D47A1)
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: isTotal ? Colors.black87 : const Color(0xFF0D47A1),
         ),
       ),
     );
   }
 
-  Widget _celdaTexto(String texto, {Alignment alignment = Alignment.center, bool isBold = false, bool isTotal = false}) {
+  Widget _celdaTexto(
+    String texto, {
+    Alignment alignment = Alignment.center,
+    bool isBold = false,
+    bool isTotal = false,
+  }) {
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
       alignment: alignment,
-      decoration: isTotal ? BoxDecoration(color: const Color(0xFF1E88E5).withOpacity(0.1)) : null,
+      decoration: isTotal
+          ? BoxDecoration(color: const Color(0xFF1E88E5).withValues(alpha: 0.1))
+          : null,
       child: Text(
         texto,
         style: TextStyle(
@@ -792,12 +1054,21 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
     );
   }
 
-  Widget _celdaNumero(int numero, {bool isTotal = false, bool isGranTotal = false, bool esPorcentaje = false, bool isBold = false}) {
+  Widget _celdaNumero(
+    int numero, {
+    bool isTotal = false,
+    bool isGranTotal = false,
+    bool esPorcentaje = false,
+    bool isBold = false,
+  }) {
     Color textColor = Colors.black87;
     if (esPorcentaje && !isTotal && !isGranTotal && numero > 0) {
-      if (numero >= 100) textColor = Colors.green.shade700;
-      else if (numero >= 67) textColor = Colors.orange.shade800;
-      else textColor = Colors.red.shade700;
+      if (numero >= 100) {
+        textColor = Colors.green.shade700;
+      } else if (numero >= 67)
+        textColor = Colors.orange.shade800;
+      else
+        textColor = Colors.red.shade700;
     } else if (numero == 0) {
       textColor = Colors.grey.shade400;
     }
@@ -809,15 +1080,19 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-          color: isGranTotal ? const Color(0xFF1E88E5).withOpacity(0.15)
-              : isTotal ? Colors.blueGrey.shade50
-              : Colors.transparent
+        color: isGranTotal
+            ? const Color(0xFF1E88E5).withValues(alpha: 0.15)
+            : isTotal
+            ? Colors.blueGrey.shade50
+            : Colors.transparent,
       ),
       child: Text(
         esPorcentaje ? '$numero%' : numero.toString(),
         style: TextStyle(
           fontSize: 11,
-          fontWeight: (isTotal || isBold || numero > 0) ? FontWeight.bold : FontWeight.normal,
+          fontWeight: (isTotal || isBold || numero > 0)
+              ? FontWeight.bold
+              : FontWeight.normal,
           color: textColor,
         ),
       ),
@@ -840,11 +1115,20 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
               children: [
                 Text(
                   'MATRIZ DIARIA DE REPORTES',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black87, letterSpacing: 0.5),
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black87,
+                    letterSpacing: 0.5,
+                  ),
                 ),
                 Text(
                   'Volumen y Cumplimiento generado por Líder / Dueño',
-                  style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
@@ -853,25 +1137,35 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
         ElevatedButton.icon(
           onPressed: _cargarDatos,
           icon: const Icon(Icons.refresh_rounded, size: 16),
-          label: const Text('Actualizar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          label: const Text(
+            'Actualizar',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+          ),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF0D47A1),
             foregroundColor: Colors.white,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
-        )
+        ),
       ],
     );
   }
 
   Widget _buildBarraFiltros() {
-    bool hayFiltrosActivos = _duenoSel != 'Todos' || _fechaDesde != null || _fechaHasta != null;
+    bool hayFiltrosActivos =
+        _duenoSel != 'Todos' || _fechaDesde != null || _fechaHasta != null;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade300)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -880,9 +1174,20 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
             children: [
               const Row(
                 children: [
-                  Icon(Icons.filter_alt_outlined, size: 18, color: Color(0xFF0D47A1)),
+                  Icon(
+                    Icons.filter_alt_outlined,
+                    size: 18,
+                    color: Color(0xFF0D47A1),
+                  ),
                   SizedBox(width: 8),
-                  Text('Filtros de Búsqueda', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
+                  Text(
+                    'Filtros de Búsqueda',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
                 ],
               ),
               if (hayFiltrosActivos)
@@ -890,7 +1195,14 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
                   onTap: _limpiarFiltros,
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Text('🧹 Limpiar Filtros', style: TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      '🧹 Limpiar Filtros',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
             ],
@@ -901,9 +1213,31 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
             runSpacing: 12,
             crossAxisAlignment: WrapCrossAlignment.end,
             children: [
-              _buildFiltroBuscador('Persona que Reporta (Dueño)', _duenoSel, _listaDuenos, (val) => setState(() { _duenoSel = val; _aplicarFiltrosYProcesarMatriz(); })),
-              _buildFiltroFecha('Desde (Fecha Creación)', _fechaDesde, (d) => setState(() { _fechaDesde = d; _aplicarFiltrosYProcesarMatriz(); })),
-              _buildFiltroFecha('Hasta (Fecha Creación)', _fechaHasta, (d) => setState(() { _fechaHasta = d; _aplicarFiltrosYProcesarMatriz(); })),
+              _buildFiltroBuscador(
+                'Persona que Reporta (Dueño)',
+                _duenoSel,
+                _listaDuenos,
+                (val) => setState(() {
+                  _duenoSel = val;
+                  _aplicarFiltrosYProcesarMatriz();
+                }),
+              ),
+              _buildFiltroFecha(
+                'Desde (Fecha Creación)',
+                _fechaDesde,
+                (d) => setState(() {
+                  _fechaDesde = d;
+                  _aplicarFiltrosYProcesarMatriz();
+                }),
+              ),
+              _buildFiltroFecha(
+                'Hasta (Fecha Creación)',
+                _fechaHasta,
+                (d) => setState(() {
+                  _fechaHasta = d;
+                  _aplicarFiltrosYProcesarMatriz();
+                }),
+              ),
             ],
           ),
         ],
@@ -911,22 +1245,45 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
     );
   }
 
-  Widget _buildFiltroBuscador(String label, String valorActual, List<String> opciones, Function(String) onSelect) {
+  Widget _buildFiltroBuscador(
+    String label,
+    String valorActual,
+    List<String> opciones,
+    Function(String) onSelect,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey,
+          ),
+        ),
         const SizedBox(height: 4),
         InkWell(
-          onTap: () => _abrirModalBuscador(label, opciones, valorActual, onSelect),
+          onTap: () =>
+              _abrirModalBuscador(label, opciones, valorActual, onSelect),
           child: Container(
             width: 220,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: Colors.white),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(6),
+              color: Colors.white,
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(child: Text(valorActual, style: const TextStyle(fontSize: 11, color: Colors.black87), overflow: TextOverflow.ellipsis)),
+                Expanded(
+                  child: Text(
+                    valorActual,
+                    style: const TextStyle(fontSize: 11, color: Colors.black87),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
                 const Icon(Icons.search, size: 14, color: Colors.grey),
               ],
             ),
@@ -936,12 +1293,25 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
     );
   }
 
-  Widget _buildFiltroFecha(String label, DateTime? fecha, Function(DateTime?) onSelect) {
-    String txt = fecha != null ? '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}' : 'dd/mm/aaaa';
+  Widget _buildFiltroFecha(
+    String label,
+    DateTime? fecha,
+    Function(DateTime?) onSelect,
+  ) {
+    String txt = fecha != null
+        ? '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}'
+        : 'dd/mm/aaaa';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey,
+          ),
+        ),
         const SizedBox(height: 4),
         InkWell(
           onTap: () async {
@@ -956,12 +1326,26 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
           child: Container(
             width: 140,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6), color: Colors.white),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(6),
+              color: Colors.white,
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(txt, style: TextStyle(fontSize: 11, color: fecha != null ? Colors.black87 : Colors.grey)),
-                const Icon(Icons.calendar_today_outlined, size: 12, color: Colors.grey),
+                Text(
+                  txt,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: fecha != null ? Colors.black87 : Colors.grey,
+                  ),
+                ),
+                const Icon(
+                  Icons.calendar_today_outlined,
+                  size: 12,
+                  color: Colors.grey,
+                ),
               ],
             ),
           ),
@@ -975,20 +1359,47 @@ class _ReportesDiariosScreenState extends State<ReportesDiariosScreen> {
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: Colors.amber.shade100, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.amber.shade700)),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade100,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.amber.shade700),
+      ),
       child: Row(
         children: [
-          Icon(Icons.warning_amber_rounded, color: Colors.amber.shade900, size: 18),
+          Icon(
+            Icons.warning_amber_rounded,
+            color: Colors.amber.shade900,
+            size: 18,
+          ),
           const SizedBox(width: 8),
-          Expanded(child: Text(_mensajeError!, style: TextStyle(color: Colors.amber.shade900, fontSize: 11, fontWeight: FontWeight.bold))),
+          Expanded(
+            child: Text(
+              _mensajeError!,
+              style: TextStyle(
+                color: Colors.amber.shade900,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
           InkWell(
             onTap: _cargarDatos,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: Colors.amber.shade900, borderRadius: BorderRadius.circular(4)),
-              child: const Text('REINTENTAR', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade900,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'REINTENTAR',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-          )
+          ),
         ],
       ),
     );

@@ -28,7 +28,10 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
   bool _sidebarFijoAbierto = true;
 
   String get _nombreUsuario {
-    final n = widget.usuario['nombre'] ?? widget.usuario['Nombre'] ?? widget.usuario['usuario'];
+    final n =
+        widget.usuario['nombre'] ??
+        widget.usuario['Nombre'] ??
+        widget.usuario['usuario'];
     return (n ?? 'OPERADOR').toString().trim().toUpperCase();
   }
 
@@ -50,13 +53,34 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
     final bool isMobile = MediaQuery.of(context).size.width < 850;
 
     final List<Widget> paginas = [
-      DashboardOlScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)),
-      ReportesDiariosScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)),
-      AccionesOlScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)),
-      AbordajesFmsScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)),
-      CincoWhyScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)),
-      HistorialCincoWhyScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)),
-      RevisionCincoWhyScreen(usuario: widget.usuario, onToggleSidebar: () => _toggleSidebar(isMobile)),
+      DashboardOlScreen(
+        usuario: widget.usuario,
+        onToggleSidebar: () => _toggleSidebar(isMobile),
+      ),
+      ReportesDiariosScreen(
+        usuario: widget.usuario,
+        onToggleSidebar: () => _toggleSidebar(isMobile),
+      ),
+      AccionesOlScreen(
+        usuario: widget.usuario,
+        onToggleSidebar: () => _toggleSidebar(isMobile),
+      ),
+      AbordajesFmsScreen(
+        usuario: widget.usuario,
+        onToggleSidebar: () => _toggleSidebar(isMobile),
+      ),
+      CincoWhyScreen(
+        usuario: widget.usuario,
+        onToggleSidebar: () => _toggleSidebar(isMobile),
+      ),
+      HistorialCincoWhyScreen(
+        usuario: widget.usuario,
+        onToggleSidebar: () => _toggleSidebar(isMobile),
+      ),
+      RevisionCincoWhyScreen(
+        usuario: widget.usuario,
+        onToggleSidebar: () => _toggleSidebar(isMobile),
+      ),
       AccionesCincoWhyScreen(onToggleSidebar: () => _toggleSidebar(isMobile)),
     ];
 
@@ -65,30 +89,28 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
       backgroundColor: const Color(0xFFF4F6F9),
       appBar: isMobile
           ? AppBar(
-        backgroundColor: const Color(0xFF0A2540),
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('LOGÍSTICA OL', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-        elevation: 0,
-      )
+              backgroundColor: const Color(0xFF0A2540),
+              iconTheme: const IconThemeData(color: Colors.white),
+              title: const Text(
+                'LOGÍSTICA OL',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              elevation: 0,
+            )
           : null,
       drawer: isMobile
-          ? Drawer(
-        width: 260,
-        child: _buildSidebarContent(isMobile),
-      )
+          ? Drawer(width: 260, child: _buildSidebarContent(isMobile))
           : null,
       body: Row(
         children: [
           if (!isMobile && _sidebarFijoAbierto)
-            SizedBox(
-              width: 250,
-              child: _buildSidebarContent(isMobile),
-            ),
+            SizedBox(width: 250, child: _buildSidebarContent(isMobile)),
           Expanded(
-            child: IndexedStack(
-              index: _selectedIndex,
-              children: paginas,
-            ),
+            child: IndexedStack(index: _selectedIndex, children: paginas),
           ),
         ],
       ),
@@ -102,10 +124,10 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
         boxShadow: [
           if (!isMobile)
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 10,
               offset: const Offset(2, 0),
-            )
+            ),
         ],
       ),
       child: Column(
@@ -123,7 +145,11 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                     color: Colors.white10,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 22),
+                  child: const Icon(
+                    Icons.local_shipping_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -132,7 +158,12 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                     children: [
                       Text(
                         'LOGÍSTICA OL',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: 0.8),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                          letterSpacing: 0.8,
+                        ),
                       ),
                       Text(
                         'Planta Tocancipá',
@@ -152,60 +183,142 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
               child: Column(
                 children: [
                   Theme(
-                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                    data: Theme.of(
+                      context,
+                    ).copyWith(dividerColor: Colors.transparent),
                     child: ExpansionTile(
                       initiallyExpanded: true,
                       iconColor: Colors.white,
                       collapsedIconColor: Colors.white60,
-                      leading: const Icon(Icons.folder_open_rounded, color: Colors.white, size: 20),
+                      leading: const Icon(
+                        Icons.folder_open_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       title: const Text(
                         'ACCIONES OL',
-                        style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
                       ),
-                      childrenPadding: const EdgeInsets.only(left: 12, bottom: 8),
+                      childrenPadding: const EdgeInsets.only(
+                        left: 12,
+                        bottom: 8,
+                      ),
                       children: [
-                        _buildSidebarItem(index: 0, icon: Icons.dashboard_rounded, label: 'Dashboard General', isMobile: isMobile),
-                        _buildSidebarItem(index: 1, icon: Icons.grid_on_rounded, label: 'Matriz Diaria', isMobile: isMobile),
-                        _buildSidebarItem(index: 2, icon: Icons.table_chart_rounded, label: 'Baúl de Acciones', isMobile: isMobile),
+                        _buildSidebarItem(
+                          index: 0,
+                          icon: Icons.dashboard_rounded,
+                          label: 'Dashboard General',
+                          isMobile: isMobile,
+                        ),
+                        _buildSidebarItem(
+                          index: 1,
+                          icon: Icons.grid_on_rounded,
+                          label: 'Matriz Diaria',
+                          isMobile: isMobile,
+                        ),
+                        _buildSidebarItem(
+                          index: 2,
+                          icon: Icons.table_chart_rounded,
+                          label: 'Baúl de Acciones',
+                          isMobile: isMobile,
+                        ),
                       ],
                     ),
                   ),
 
                   Theme(
-                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                    data: Theme.of(
+                      context,
+                    ).copyWith(dividerColor: Colors.transparent),
                     child: ExpansionTile(
                       initiallyExpanded: true,
                       iconColor: Colors.white,
                       collapsedIconColor: Colors.white60,
-                      leading: const Icon(Icons.security_rounded, color: Colors.white, size: 20),
+                      leading: const Icon(
+                        Icons.security_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       title: const Text(
                         'GESTIÓN FMS',
-                        style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
                       ),
-                      childrenPadding: const EdgeInsets.only(left: 12, bottom: 8),
+                      childrenPadding: const EdgeInsets.only(
+                        left: 12,
+                        bottom: 8,
+                      ),
                       children: [
-                        _buildSidebarItem(index: 3, icon: Icons.assignment_ind_rounded, label: 'Abordajes', isMobile: isMobile),
+                        _buildSidebarItem(
+                          index: 3,
+                          icon: Icons.assignment_ind_rounded,
+                          label: 'Abordajes',
+                          isMobile: isMobile,
+                        ),
                       ],
                     ),
                   ),
 
                   Theme(
-                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                    data: Theme.of(
+                      context,
+                    ).copyWith(dividerColor: Colors.transparent),
                     child: ExpansionTile(
                       initiallyExpanded: true,
                       iconColor: Colors.white,
                       collapsedIconColor: Colors.white60,
-                      leading: const Icon(Icons.psychology_alt_rounded, color: Colors.white, size: 20),
+                      leading: const Icon(
+                        Icons.psychology_alt_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       title: const Text(
                         '5 POR QUÉ',
-                        style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
                       ),
-                      childrenPadding: const EdgeInsets.only(left: 12, bottom: 8),
+                      childrenPadding: const EdgeInsets.only(
+                        left: 12,
+                        bottom: 8,
+                      ),
                       children: [
-                        _buildSidebarItem(index: 4, icon: Icons.post_add_rounded, label: 'Formulario 5 Why', isMobile: isMobile),
-                        _buildSidebarItem(index: 5, icon: Icons.history_rounded, label: 'Historial 5 Why', isMobile: isMobile),
-                        _buildSidebarItem(index: 6, icon: Icons.fact_check_rounded, label: 'Revisión 5 Why', isMobile: isMobile),
-                        _buildSidebarItem(index: 7, icon: Icons.task_alt_rounded, label: 'Acciones 5 Why', isMobile: isMobile),
+                        _buildSidebarItem(
+                          index: 4,
+                          icon: Icons.post_add_rounded,
+                          label: 'Formulario 5 Why',
+                          isMobile: isMobile,
+                        ),
+                        _buildSidebarItem(
+                          index: 5,
+                          icon: Icons.history_rounded,
+                          label: 'Historial 5 Why',
+                          isMobile: isMobile,
+                        ),
+                        _buildSidebarItem(
+                          index: 6,
+                          icon: Icons.fact_check_rounded,
+                          label: 'Revisión 5 Why',
+                          isMobile: isMobile,
+                        ),
+                        _buildSidebarItem(
+                          index: 7,
+                          icon: Icons.task_alt_rounded,
+                          label: 'Acciones 5 Why',
+                          isMobile: isMobile,
+                        ),
                       ],
                     ),
                   ),
@@ -225,7 +338,11 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                   backgroundColor: const Color(0xFF1976D2),
                   child: Text(
                     _nombreUsuario.isNotEmpty ? _nombreUsuario[0] : 'U',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -235,12 +352,19 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                     children: [
                       Text(
                         _nombreUsuario,
-                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         'ID: $_cedulaUsuario',
-                        style: const TextStyle(color: Colors.white54, fontSize: 10),
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 10,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
@@ -256,20 +380,31 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
               onTap: widget.onCerrarSesion,
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 12,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.15),
+                  color: Colors.red.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                 ),
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.logout_rounded, color: Colors.redAccent, size: 16),
+                    Icon(
+                      Icons.logout_rounded,
+                      color: Colors.redAccent,
+                      size: 16,
+                    ),
                     SizedBox(width: 8),
                     Text(
                       'Cerrar Sesión',
-                      style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -281,7 +416,12 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
     );
   }
 
-  Widget _buildSidebarItem({required int index, required IconData icon, required String label, required bool isMobile}) {
+  Widget _buildSidebarItem({
+    required int index,
+    required IconData icon,
+    required String label,
+    required bool isMobile,
+  }) {
     final bool esSeleccionado = _selectedIndex == index;
 
     return Padding(
@@ -298,12 +438,18 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: esSeleccionado ? const Color(0xFF1976D2).withOpacity(0.8) : Colors.transparent,
+            color: esSeleccionado
+                ? const Color(0xFF1976D2).withValues(alpha: 0.8)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             children: [
-              Icon(icon, color: esSeleccionado ? Colors.white : Colors.white60, size: 18),
+              Icon(
+                icon,
+                color: esSeleccionado ? Colors.white : Colors.white60,
+                size: 18,
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
@@ -311,7 +457,9 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                   style: TextStyle(
                     color: esSeleccionado ? Colors.white : Colors.white70,
                     fontSize: 12,
-                    fontWeight: esSeleccionado ? FontWeight.bold : FontWeight.w500,
+                    fontWeight: esSeleccionado
+                        ? FontWeight.bold
+                        : FontWeight.w500,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),

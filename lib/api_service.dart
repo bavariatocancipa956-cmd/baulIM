@@ -137,14 +137,13 @@ class ApiService {
   static Future<bool> auditarConIA(String id) async {
     final url = Uri.parse('$baseUrl/$database/auditar/5why/$id');
 
-    try {
-      final response = await http.post(url, headers: _headers);
+    try {final response = await http.post(url, headers: _headers);
 
-      if (response.statusCode == 200) {
-        return true;
-      } else {
-        throw Exception('Fallo en la auditoría IA (${response.statusCode}): ${response.body}');
-      }
+    if (response.statusCode == 200) {
+      return true;
+    } else {
+      throw Exception('Fallo en la auditoría IA (${response.statusCode}): ${response.body}');
+    }
     } catch (e) {
       throw Exception('Error de conexión con el Auditor IA: $e');
     }
