@@ -4882,7 +4882,10 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
     );
 
     try {
-      final apiKey = dotenv.env['OPENROUTER_API_KEY'] ?? '';
+      String envKey = dotenv.env['OPENROUTER_API_KEY'] ?? '';
+      final apiKey = envKey.isNotEmpty
+          ? envKey
+          : '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';
       final url = Uri.parse('https://openrouter.ai/api/v1/chat/completions');
 
       // Preparamos los datos que le mandaremos en la conversación

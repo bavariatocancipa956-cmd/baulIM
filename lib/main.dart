@@ -5,7 +5,11 @@ import 'main_layout_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint("Error al cargar .env: $e");
+  }
   runApp(const MyApp());
 }
 
