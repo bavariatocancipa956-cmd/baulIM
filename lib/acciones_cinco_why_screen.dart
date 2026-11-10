@@ -416,24 +416,19 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.zero,
       child: SingleChildScrollView(
         scrollDirection: Axis.vertical,
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border(top: _bordeTabla, left: _bordeTabla),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildCabeceraTabla(),
-                ..._accionesAgrupadas.entries.map(
-                  (entry) => _buildFilaAgrupada(entry.value),
-                ),
-              ],
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildCabeceraTabla(),
+              ..._accionesAgrupadas.entries.map(
+                (entry) => _buildFilaAgrupada(entry.value),
+              ),
+            ],
           ),
         ),
       ),
@@ -464,45 +459,44 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildCeldaCuerpo(
+          _buildCeldaAgrupada(
             Text(
               primera.fecha,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, color: Colors.black87),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF334155)),
             ),
             wFecha,
           ),
-          _buildCeldaCuerpo(
+          _buildCeldaAgrupada(
             Text(
               primera.area,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, color: Colors.black87),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF334155)),
             ),
             wArea,
           ),
-          _buildCeldaCuerpo(
+          _buildCeldaAgrupada(
             Text(
               primera.pi,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, color: Colors.black87),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF334155), fontWeight: FontWeight.bold),
             ),
             wPi,
           ),
-          _buildCeldaCuerpo(
+          _buildCeldaAgrupada(
             const Icon(
               Icons.picture_as_pdf_rounded,
-              color: Colors.redAccent,
-              size: 22,
+              color: Color(0xFFEF4444),
+              size: 20,
             ),
             wPdf,
           ),
-
           SizedBox(
             width: wTipo + wAccion + wResponsable + wFechaCierre + wEstado + wEvidencia,
             child: Column(
-              children: grupo
-                  .map((accion) => _buildFilaAccion(accion))
-                  .toList(),
+              children: grupo.asMap().entries.map((entry) {
+                return _buildFilaAccion(entry.value, isLast: entry.key == grupo.length - 1);
+              }).toList(),
             ),
           ),
         ],
@@ -510,7 +504,7 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
     );
   }
 
-  Widget _buildFilaAccion(AccionVisual accion) {
+  Widget _buildFilaAccion(AccionVisual accion, {required bool isLast}) {
     bool completado = accion.estado.toLowerCase() == 'concluida';
 
     return Row(
@@ -519,43 +513,49 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
           Text(
             accion.tipoAccion,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, color: Colors.black87),
+            style: const TextStyle(fontSize: 12, color: Color(0xFF334155)),
           ),
           wTipo,
+          isLast: isLast,
         ),
         _buildCeldaCuerpo(
           Text(
             accion.descripcion,
-            style: const TextStyle(fontSize: 12, color: Colors.black87),
+            style: const TextStyle(fontSize: 12, color: Color(0xFF334155)),
             maxLines: 4,
             overflow: TextOverflow.ellipsis,
           ),
           wAccion,
           align: Alignment.centerLeft,
+          isLast: isLast,
         ),
         _buildCeldaCuerpo(
           Text(
             accion.responsable,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, color: Colors.black87),
+            style: const TextStyle(fontSize: 12, color: Color(0xFF334155)),
           ),
           wResponsable,
+          isLast: isLast,
         ),
         _buildCeldaCuerpo(
           Text(
             accion.fechaCierre,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, color: Colors.black87),
+            style: const TextStyle(fontSize: 12, color: Color(0xFF334155)),
           ),
           wFechaCierre,
+          isLast: isLast,
         ),
         _buildCeldaCuerpo(
           _buildBadgeEstado(accion.estado.toUpperCase(), completado),
           wEstado,
+          isLast: isLast,
         ),
         _buildCeldaCuerpo(
           _buildEvidenciaWidget(accion),
           wEvidencia,
+          isLast: isLast,
         ),
       ],
     );
@@ -568,10 +568,10 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
   }) {
     return Container(
       width: width,
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        border: Border(right: _bordeTabla, bottom: _bordeTabla),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 2)), // Borde inferior fuerte
       ),
       alignment: align,
       child: Text(
@@ -579,10 +579,27 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
         textAlign: TextAlign.center,
         style: const TextStyle(
           fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF475569),
+          fontWeight: FontWeight.w800,
+          color: Color(0xFF64748B), // Texto sutil tipo Slate
+          letterSpacing: 0.5,
         ),
       ),
+    );
+  }
+
+  Widget _buildCeldaAgrupada(
+    Widget hijo,
+    double width,
+  ) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)), // Borde inferior separador de grupos
+      ),
+      alignment: Alignment.center,
+      child: hijo,
     );
   }
 
@@ -590,12 +607,18 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
     Widget hijo,
     double width, {
     Alignment align = Alignment.center,
+    required bool isLast,
   }) {
+    BorderSide borderSide = isLast 
+        ? const BorderSide(color: Color(0xFFE2E8F0), width: 1) // Borde del grupo final
+        : const BorderSide(color: Color(0xFFF1F5F9), width: 1); // Borde interno sutil
+
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
-        border: Border(right: _bordeTabla, bottom: _bordeTabla),
+        color: Colors.white,
+        border: Border(bottom: borderSide),
       ),
       alignment: align,
       child: hijo,
@@ -603,26 +626,20 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
   }
 
   Widget _buildBadgeEstado(String text, bool isSuccess) {
-    Color colorFondo = isSuccess ? Colors.green.shade50 : Colors.orange.shade50;
-    Color colorTexto = isSuccess
-        ? Colors.green.shade700
-        : Colors.orange.shade800;
-    Color colorBorde = isSuccess
-        ? Colors.green.shade300
-        : Colors.orange.shade300;
+    Color colorFondo = isSuccess ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7);
+    Color colorTexto = isSuccess ? const Color(0xFF166534) : const Color(0xFF92400E);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: colorFondo,
-        border: Border.all(color: colorBorde, width: 1),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(20), // Botones redondeados tipo píldora
       ),
       child: Text(
         text,
         style: TextStyle(
           color: colorTexto,
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: FontWeight.w800,
         ),
       ),
