@@ -5,6 +5,10 @@ import 'package:image/image.dart' as img;
 import 'package:flutter/foundation.dart';
 import 'dart:typed_data';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'api_service.dart';
 
 // ==========================================
@@ -22,6 +26,7 @@ class AccionVisual {
   final String fechaCierre;
   final String estado;
   final String? urlEvidencia;
+  final Map<String, dynamic> rowData;
 
   AccionVisual({
     required this.id5Why,
@@ -35,6 +40,7 @@ class AccionVisual {
     required this.fechaCierre,
     required this.estado,
     this.urlEvidencia,
+    required this.rowData,
   });
 }
 
@@ -78,6 +84,8 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
     color: Colors.grey.shade300,
     width: 1,
   );
+
+  bool _generandoPdf = false;
 
   @override
   void initState() {
@@ -130,6 +138,7 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
                 fechaCierre: _formatearFecha(row['fecha_cierre_$i']),
                 estado: row['estado_accion$i'] ?? 'Pendiente',
                 urlEvidencia: row['evidencia_accion_$i']?.toString(),
+                rowData: row,
               ),
             );
           }
@@ -262,6 +271,8 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
     int concluidas = _accionesFiltradas.where((a) => a.estado.toLowerCase() == 'concluida').length;
     int pendientes = total - concluidas;
 
+    double avance = total == 0 ? 0 : (concluidas / total) * 100;
+
     return Row(
       children: [
         Expanded(child: _buildKPI('TOTAL ACCIONES', total.toString(), Colors.blue)),
@@ -269,6 +280,54 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
         Expanded(child: _buildKPI('CONCLUIDAS', concluidas.toString(), Colors.green)),
         const SizedBox(width: 12),
         Expanded(child: _buildKPI('PENDIENTES', pendientes.toString(), Colors.orange)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade200),
+              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('AVANCE GENERAL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                      const SizedBox(height: 8),
+                      Text('${avance.toStringAsFixed(1)}%', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CircularProgressIndicator(
+                        value: total == 0 ? 0 : concluidas / total,
+                        backgroundColor: Colors.grey.shade200,
+                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
+                        strokeWidth: 6,
+                      ),
+                      Center(
+                        child: Text(
+                          '${avance.toInt()}%',
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -297,27 +356,7 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
   // TABLAS RESUMEN
   // ===============================================
   Widget _buildTablasResumen() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth > 800) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: _buildTablaResumen('Acciones por Área', _agruparPorArea())),
-              const SizedBox(width: 20),
-              Expanded(child: _buildTablaResumen('Acciones por PI', _agruparPorPI())),
-            ],
-          );
-        }
-        return Column(
-          children: [
-            _buildTablaResumen('Acciones por Área', _agruparPorArea()),
-            const SizedBox(height: 20),
-            _buildTablaResumen('Acciones por PI', _agruparPorPI()),
-          ],
-        );
-      },
-    );
+    return _buildTablaResumen('Acciones por Área', _agruparPorArea());
   }
 
   Map<String, Map<String, int>> _agruparPorArea() {
@@ -328,19 +367,6 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
       map[area]!['total'] = map[area]!['total']! + 1;
       if (a.estado.toLowerCase() == 'concluida') {
         map[area]!['concluidas'] = map[area]!['concluidas']! + 1;
-      }
-    }
-    return map;
-  }
-
-  Map<String, Map<String, int>> _agruparPorPI() {
-    Map<String, Map<String, int>> map = {};
-    for (var a in _accionesFiltradas) {
-      String pi = a.pi.toUpperCase();
-      map.putIfAbsent(pi, () => {'total': 0, 'concluidas': 0});
-      map[pi]!['total'] = map[pi]!['total']! + 1;
-      if (a.estado.toLowerCase() == 'concluida') {
-        map[pi]!['concluidas'] = map[pi]!['concluidas']! + 1;
       }
     }
     return map;
@@ -622,13 +648,13 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
         _buildCeldaCabecera('FECHA', wFecha),
         _buildCeldaCabecera('AREA', wArea),
         _buildCeldaCabecera('PI', wPi),
-        _buildCeldaCabecera('PDF', wPdf),
         _buildCeldaCabecera('TIPO DE ACCIÓN', wTipo),
         _buildCeldaCabecera('ACCIÓN', wAccion, align: Alignment.centerLeft),
         _buildCeldaCabecera('RESPONSABLE', wResponsable),
         _buildCeldaCabecera('FECHA CIERRE', wFechaCierre),
         _buildCeldaCabecera('ESTADO', wEstado),
         _buildCeldaCabecera('EVIDENCIA', wEvidencia),
+        _buildCeldaCabecera('PDF', wPdf),
       ],
     );
   }
@@ -664,14 +690,6 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
             ),
             wPi,
           ),
-          _buildCeldaAgrupada(
-            const Icon(
-              Icons.picture_as_pdf_rounded,
-              color: Color(0xFFEF4444),
-              size: 20,
-            ),
-            wPdf,
-          ),
           SizedBox(
             width: wTipo + wAccion + wResponsable + wFechaCierre + wEstado + wEvidencia,
             child: Column(
@@ -679,6 +697,20 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
                 return _buildFilaAccion(entry.value, isLast: entry.key == grupo.length - 1);
               }).toList(),
             ),
+          ),
+          _buildCeldaAgrupada(
+            _generandoPdf 
+            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.redAccent))
+            : IconButton(
+                icon: const Icon(
+                  Icons.picture_as_pdf_rounded,
+                  color: Color(0xFFEF4444),
+                  size: 20,
+                ),
+                tooltip: 'Descargar PDF 5 Why',
+                onPressed: () => _generarYDescargarPDF(primera.rowData),
+              ),
+            wPdf,
           ),
         ],
       ),
@@ -1020,6 +1052,158 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
         ),
       ),
     );
+  }
+
+  // ===============================================
+  // GENERAR PDF DE ACCIONES DE 5 WHY
+  // ===============================================
+  Future<void> _generarYDescargarPDF(Map<String, dynamic> row) async {
+    setState(() => _generandoPdf = true);
+    try {
+      final doc = pw.Document();
+
+      // Extracción de datos básicos
+      String area = row['area']?.toString() ?? 'N/A';
+      String pi = row['pi']?.toString() ?? 'N/A';
+      String maquina = row['maquina']?.toString() ?? 'N/A';
+      String fecha = _formatearFecha(row['fecha']);
+
+      // Estilos
+      final pw.TextStyle titleStyle = pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900);
+      final pw.TextStyle headerStyle = pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.white);
+      final pw.TextStyle cellStyle = const pw.TextStyle(fontSize: 9, color: PdfColors.black);
+      final pw.TextStyle boldCell = pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.black);
+
+      // Widget para celdas de encabezado
+      pw.Widget headerCell(String text) {
+        return pw.Container(
+          padding: const pw.EdgeInsets.all(6),
+          color: PdfColors.blue800,
+          child: pw.Center(child: pw.Text(text, style: headerStyle, textAlign: pw.TextAlign.center)),
+        );
+      }
+
+      // Procesar acciones y descargar imágenes (si existen)
+      List<List<pw.Widget>> filasAcciones = [];
+      for (int i = 1; i <= 4; i++) {
+        String? tipoAccion = row['accion_$i'];
+        if (tipoAccion != null && tipoAccion.toString().trim().isNotEmpty) {
+          String descripcion = row['descripcion_$i']?.toString() ?? '-';
+          String responsable = (row['responsable_$i'] ?? '-').toString().toUpperCase();
+          String fechaCierre = _formatearFecha(row['fecha_cierre_$i']);
+          String estado = row['estado_accion$i']?.toString().toUpperCase() ?? 'PENDIENTE';
+          String rawEvidencia = row['evidencia_accion_$i']?.toString() ?? '';
+          
+          pw.Widget evidenciaWidget = pw.Text('-', style: cellStyle);
+          
+          if (rawEvidencia.startsWith('http') || rawEvidencia.startsWith('data:image')) {
+             try {
+                pw.ImageProvider? imgProv;
+                if (rawEvidencia.startsWith('http')) {
+                  final resp = await http.get(Uri.parse(rawEvidencia));
+                  if (resp.statusCode == 200) imgProv = pw.MemoryImage(resp.bodyBytes);
+                } else if (rawEvidencia.startsWith('data:image')) {
+                   imgProv = pw.MemoryImage(base64Decode(rawEvidencia.split(',').last));
+                }
+                if (imgProv != null) {
+                  evidenciaWidget = pw.Container(
+                    width: 60, height: 60, 
+                    child: pw.Image(imgProv, fit: pw.BoxFit.contain)
+                  );
+                }
+             } catch(e) {
+                evidenciaWidget = pw.Text('Error imagen', style: cellStyle.copyWith(color: PdfColors.red));
+             }
+          }
+
+          filasAcciones.add([
+            pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(tipoAccion, style: cellStyle, textAlign: pw.TextAlign.center)),
+            pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(descripcion, style: cellStyle)),
+            pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(responsable, style: cellStyle, textAlign: pw.TextAlign.center)),
+            pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(fechaCierre, style: cellStyle, textAlign: pw.TextAlign.center)),
+            pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(estado, style: boldCell.copyWith(color: estado == 'CONCLUIDA' ? PdfColors.green700 : PdfColors.orange700), textAlign: pw.TextAlign.center)),
+            pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Center(child: evidenciaWidget)),
+          ]);
+        }
+      }
+
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4.landscape,
+          margin: const pw.EdgeInsets.all(32),
+          build: (pw.Context context) {
+            return [
+              pw.Header(
+                level: 0,
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Reporte de Acciones - 5 Porqués', style: titleStyle),
+                    pw.Text('Generado: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                  ],
+                )
+              ),
+              pw.SizedBox(height: 10),
+              pw.Container(
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey100,
+                  border: pw.Border.all(color: PdfColors.grey400),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+                  children: [
+                    pw.Text('Área: $area', style: boldCell),
+                    pw.Text('PI Afectado: $pi', style: boldCell),
+                    pw.Text('Máquina: $maquina', style: boldCell),
+                    pw.Text('Fecha Incidente: $fecha', style: boldCell),
+                  ]
+                )
+              ),
+              pw.SizedBox(height: 20),
+              if (filasAcciones.isEmpty)
+                pw.Center(child: pw.Text('No hay acciones registradas', style: cellStyle))
+              else 
+                pw.Table(
+                  border: pw.TableBorder.all(color: PdfColors.grey300),
+                  columnWidths: {
+                    0: const pw.FlexColumnWidth(1),
+                    1: const pw.FlexColumnWidth(3),
+                    2: const pw.FlexColumnWidth(1),
+                    3: const pw.FlexColumnWidth(1),
+                    4: const pw.FlexColumnWidth(1),
+                    5: const pw.FlexColumnWidth(1.2),
+                  },
+                  children: [
+                    pw.TableRow(
+                      children: [
+                        headerCell('TIPO'),
+                        headerCell('DESCRIPCIÓN DE LA ACCIÓN'),
+                        headerCell('RESPONSABLE'),
+                        headerCell('FECHA CIERRE'),
+                        headerCell('ESTADO'),
+                        headerCell('EVIDENCIA'),
+                      ]
+                    ),
+                    ...filasAcciones.map((f) => pw.TableRow(children: f)).toList(),
+                  ]
+                )
+            ];
+          }
+        )
+      );
+
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => doc.save(),
+        name: 'Reporte_Acciones_${pi}_$fecha.pdf',
+      );
+
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al generar PDF: $e')));
+    } finally {
+      if (mounted) setState(() => _generandoPdf = false);
+    }
   }
 }
 
