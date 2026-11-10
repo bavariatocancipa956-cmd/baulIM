@@ -193,6 +193,12 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
     _aplicarFiltros();
   }
 
+  String _agruparArea(String area) {
+    String a = area.toLowerCase().trim();
+    if (a.startsWith('linea') || a.startsWith('línea')) return 'LÍNEAS';
+    return area.toUpperCase();
+  }
+
   Map<int, List<AccionVisual>> get _accionesAgrupadas {
     Map<int, List<AccionVisual>> agrupadas = {};
     for (var accion in _accionesFiltradas) {
@@ -231,9 +237,169 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
           : Column(
               children: [
                 _buildBarraFiltrosSuperior(),
-                Expanded(child: _buildTablaCustom()),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.all(20),
+                    children: [
+                      _buildTarjetasKPI(),
+                      const SizedBox(height: 20),
+                      _buildTablasResumen(),
+                      const SizedBox(height: 20),
+                      _buildContenedorTablaCustom(),
+                    ],
+                  ),
+                ),
               ],
             ),
+    );
+  }
+
+  // ===============================================
+  // TARJETAS KPI
+  // ===============================================
+  Widget _buildTarjetasKPI() {
+    int total = _accionesFiltradas.length;
+    int concluidas = _accionesFiltradas.where((a) => a.estado.toLowerCase() == 'concluida').length;
+    int pendientes = total - concluidas;
+
+    return Row(
+      children: [
+        Expanded(child: _buildKPI('TOTAL ACCIONES', total.toString(), Colors.blue)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildKPI('CONCLUIDAS', concluidas.toString(), Colors.green)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildKPI('PENDIENTES', pendientes.toString(), Colors.orange)),
+      ],
+    );
+  }
+
+  Widget _buildKPI(String titulo, String valor, MaterialColor color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(titulo, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color.shade700)),
+          const SizedBox(height: 8),
+          Text(valor, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+        ],
+      ),
+    );
+  }
+
+  // ===============================================
+  // TABLAS RESUMEN
+  // ===============================================
+  Widget _buildTablasResumen() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth > 800) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _buildTablaResumen('Acciones por Área', _agruparPorArea())),
+              const SizedBox(width: 20),
+              Expanded(child: _buildTablaResumen('Acciones por PI', _agruparPorPI())),
+            ],
+          );
+        }
+        return Column(
+          children: [
+            _buildTablaResumen('Acciones por Área', _agruparPorArea()),
+            const SizedBox(height: 20),
+            _buildTablaResumen('Acciones por PI', _agruparPorPI()),
+          ],
+        );
+      },
+    );
+  }
+
+  Map<String, Map<String, int>> _agruparPorArea() {
+    Map<String, Map<String, int>> map = {};
+    for (var a in _accionesFiltradas) {
+      String area = _agruparArea(a.area);
+      map.putIfAbsent(area, () => {'total': 0, 'concluidas': 0});
+      map[area]!['total'] = map[area]!['total']! + 1;
+      if (a.estado.toLowerCase() == 'concluida') {
+        map[area]!['concluidas'] = map[area]!['concluidas']! + 1;
+      }
+    }
+    return map;
+  }
+
+  Map<String, Map<String, int>> _agruparPorPI() {
+    Map<String, Map<String, int>> map = {};
+    for (var a in _accionesFiltradas) {
+      String pi = a.pi.toUpperCase();
+      map.putIfAbsent(pi, () => {'total': 0, 'concluidas': 0});
+      map[pi]!['total'] = map[pi]!['total']! + 1;
+      if (a.estado.toLowerCase() == 'concluida') {
+        map[pi]!['concluidas'] = map[pi]!['concluidas']! + 1;
+      }
+    }
+    return map;
+  }
+
+  Widget _buildTablaResumen(String titulo, Map<String, Map<String, int>> datos) {
+    var filas = datos.entries.toList()..sort((a, b) => b.value['total']!.compareTo(a.value['total']!));
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: const BoxDecoration(
+              color: Color(0xFF1E293B),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+            ),
+            child: Text(titulo, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              children: [
+                const Row(
+                  children: [
+                    Expanded(flex: 3, child: Text('CATEGORÍA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black54))),
+                    Expanded(child: Text('TOTAL', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black54))),
+                    Expanded(child: Text('CONCLUIDAS', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black54))),
+                    Expanded(child: Text('% AVANCE', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black54))),
+                  ],
+                ),
+                const Divider(),
+                ...filas.map((e) {
+                  double pct = e.value['total']! == 0 ? 0 : (e.value['concluidas']! / e.value['total']!) * 100;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Expanded(flex: 3, child: Text(e.key, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600))),
+                        Expanded(child: Text(e.value['total'].toString(), textAlign: TextAlign.center, style: const TextStyle(fontSize: 11))),
+                        Expanded(child: Text(e.value['concluidas'].toString(), textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, color: Colors.green))),
+                        Expanded(child: Text('${pct.toStringAsFixed(1)}%', textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
+          )
+        ],
+      ),
     );
   }
 
@@ -398,38 +564,53 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
   }
 
   // ===============================================
-  // TABLA CUSTOM ESTILO EXCEL
+  // TABLA CUSTOM ESTILO EXCEL (Encabezados Fijos)
   // ===============================================
+  Widget _buildContenedorTablaCustom() {
+    return Container(
+      height: 600, // Altura fija para permitir el scroll interno de la tabla
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+      ),
+      child: _buildTablaCustom(),
+    );
+  }
+
   Widget _buildTablaCustom() {
     if (_accionesFiltradas.isEmpty) {
-      return Container(
-        color: Colors.white,
-        width: double.infinity,
-        child: const Center(
-          child: Text(
-            'No se encontraron acciones con los filtros aplicados',
-            style: TextStyle(color: Colors.black54),
-          ),
+      return const Center(
+        child: Text(
+          'No se encontraron acciones con los filtros aplicados',
+          style: TextStyle(color: Colors.black54),
         ),
       );
     }
 
-    return Container(
-      color: Colors.white,
-      padding: EdgeInsets.zero,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildCabeceraTabla(),
-              ..._accionesAgrupadas.entries.map(
-                (entry) => _buildFilaAgrupada(entry.value),
+    double totalWidth = wFecha + wArea + wPi + wPdf + wTipo + wAccion + wResponsable + wFechaCierre + wEstado + wEvidencia;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: totalWidth,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildCabeceraTabla(),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _accionesAgrupadas.entries.map(
+                    (entry) => _buildFilaAgrupada(entry.value),
+                  ).toList(),
+                ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -570,17 +751,20 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
       width: width,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
       decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 2)), // Borde inferior fuerte
+        color: Color(0xFFF1F5F9), // Un gris azulado claro profesional
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 2),
+          right: BorderSide(color: Color(0xFFE2E8F0), width: 1), // Borde derecho para Excel feel
+        ), 
       ),
       alignment: align,
       child: Text(
         texto,
         textAlign: TextAlign.center,
         style: const TextStyle(
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: FontWeight.w800,
-          color: Color(0xFF64748B), // Texto sutil tipo Slate
+          color: Color(0xFF334155), 
           letterSpacing: 0.5,
         ),
       ),
@@ -596,7 +780,10 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)), // Borde inferior separador de grupos
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1), 
+          right: BorderSide(color: Color(0xFFE2E8F0), width: 1), // Separador vertical de grupos
+        ), 
       ),
       alignment: Alignment.center,
       child: hijo,
@@ -609,16 +796,19 @@ class _AccionesCincoWhyScreenState extends State<AccionesCincoWhyScreen> {
     Alignment align = Alignment.center,
     required bool isLast,
   }) {
-    BorderSide borderSide = isLast 
-        ? const BorderSide(color: Color(0xFFE2E8F0), width: 1) // Borde del grupo final
-        : const BorderSide(color: Color(0xFFF1F5F9), width: 1); // Borde interno sutil
+    BorderSide borderBottom = isLast 
+        ? const BorderSide(color: Color(0xFFE2E8F0), width: 1) 
+        : const BorderSide(color: Color(0xFFF8FAFC), width: 1); 
 
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(bottom: borderSide),
+        border: Border(
+          bottom: borderBottom,
+          right: const BorderSide(color: Color(0xFFF1F5F9), width: 1), // Separador vertical tenue
+        ),
       ),
       alignment: align,
       child: hijo,
