@@ -3,6 +3,7 @@ import 'dashboard_ol_screen.dart';
 import 'reportes_diarios_screen.dart';
 import 'acciones_ol_screen.dart';
 import 'abordajes_fms_screen.dart';
+import 'abordajes_rotura_screen.dart';
 import 'cinco_why_screen.dart';
 import 'historial_cinco_why_screen.dart';
 import 'revision_cinco_why_screen.dart';
@@ -66,6 +67,10 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
         onToggleSidebar: () => _toggleSidebar(isMobile),
       ),
       AbordajesFmsScreen(
+        usuario: widget.usuario,
+        onToggleSidebar: () => _toggleSidebar(isMobile),
+      ),
+      AbordajesRoturaScreen(
         usuario: widget.usuario,
         onToggleSidebar: () => _toggleSidebar(isMobile),
       ),
@@ -245,7 +250,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                         size: 20,
                       ),
                       title: const Text(
-                        'GESTIÓN FMS',
+                        'ABORDAJES',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 13,
@@ -261,7 +266,13 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                         _buildSidebarItem(
                           index: 3,
                           icon: Icons.assignment_ind_rounded,
-                          label: 'Abordajes',
+                          label: 'Abordaje Fms',
+                          isMobile: isMobile,
+                        ),
+                        _buildSidebarItem(
+                          index: 4,
+                          icon: Icons.assignment_late_rounded,
+                          label: 'Abordajes rotura',
                           isMobile: isMobile,
                         ),
                       ],
@@ -296,25 +307,25 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                       ),
                       children: [
                         _buildSidebarItem(
-                          index: 4,
+                          index: 5,
                           icon: Icons.post_add_rounded,
                           label: 'Formulario 5 Why',
                           isMobile: isMobile,
                         ),
                         _buildSidebarItem(
-                          index: 5,
+                          index: 6,
                           icon: Icons.history_rounded,
                           label: 'Historial 5 Why',
                           isMobile: isMobile,
                         ),
                         _buildSidebarItem(
-                          index: 6,
+                          index: 7,
                           icon: Icons.fact_check_rounded,
                           label: 'Revisión 5 Why',
                           isMobile: isMobile,
                         ),
                         _buildSidebarItem(
-                          index: 7,
+                          index: 8,
                           icon: Icons.task_alt_rounded,
                           label: 'Acciones 5 Why',
                           isMobile: isMobile,

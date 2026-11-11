@@ -9,8 +9,6 @@ import 'package:printing/printing.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'dart:math';
-import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'api_service.dart';
 
@@ -713,40 +711,16 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
         () => {
           'total': 0,
           'revisados': 0,
-          'aptos': 0,
-          'noAptos': 0,
           'pendientes': 0,
-          'respuestasSi': 0,
-          'sumaCalificacion': 0.0,
-          'calificaciones': 0,
         },
       );
       fila['total'] = (fila['total'] as int) + 1;
 
       final estado = _estadoEvaluacion(registro);
-      if (estado == 'APTO') {
-        fila['aptos'] = (fila['aptos'] as int) + 1;
-        fila['revisados'] = (fila['revisados'] as int) + 1;
-      } else if (estado == 'NO APTO') {
-        fila['noAptos'] = (fila['noAptos'] as int) + 1;
+      if (estado != 'PENDIENTE') {
         fila['revisados'] = (fila['revisados'] as int) + 1;
       } else {
         fila['pendientes'] = (fila['pendientes'] as int) + 1;
-      }
-
-      if (estado != 'PENDIENTE') {
-        for (final criterio in _criteriosAdherencia.keys) {
-          if ((registro[criterio]?.toString() ?? '').trim().toUpperCase() ==
-              'SI') {
-            fila['respuestasSi'] = (fila['respuestasSi'] as int) + 1;
-          }
-        }
-      }
-
-      final score = _calificacionNumerica(registro);
-      if (score != null) {
-        fila['sumaCalificacion'] = (fila['sumaCalificacion'] as double) + score;
-        fila['calificaciones'] = (fila['calificaciones'] as int) + 1;
       }
     }
     return resumen;
@@ -779,50 +753,22 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
     }
 
     final total = registros.length;
-    final totalAptos = registros
-        .where((registro) => _estadoEvaluacion(registro) == 'APTO')
-        .length;
-    final totalNoAptos = registros
-        .where((registro) => _estadoEvaluacion(registro) == 'NO APTO')
+    final totalRevisados = registros
+        .where((registro) => _estadoEvaluacion(registro) != 'PENDIENTE')
         .length;
     final totalPendientes = registros
         .where((registro) => _estadoEvaluacion(registro) == 'PENDIENTE')
         .length;
-    final totalRevisados = totalAptos + totalNoAptos;
 
-    String porcentajeAdherencia(Map<String, dynamic> datos) {
-      final denominador =
-          (datos['revisados'] as int) * _criteriosAdherencia.length;
-      if (denominador == 0) return '—';
-      final porcentaje = (datos['respuestasSi'] as int) / denominador * 100;
-      return '${porcentaje.toStringAsFixed(1)}%';
-    }
-
-    String promedioCalificacion(Map<String, dynamic> datos) {
-      final cantidad = datos['calificaciones'] as int;
-      if (cantidad == 0) return '—';
-      final promedio = (datos['sumaCalificacion'] as double) / cantidad;
-      return '${promedio.toStringAsFixed(1)}%';
+    String calcularAvance(int realizadas, int total) {
+      if (total == 0) return '0.0%';
+      return '${(realizadas / total * 100).toStringAsFixed(1)}%';
     }
 
     final totalDatos = <String, dynamic>{
       'total': total,
       'revisados': totalRevisados,
-      'aptos': totalAptos,
-      'noAptos': totalNoAptos,
       'pendientes': totalPendientes,
-      'respuestasSi': filas.fold<int>(
-        0,
-        (sum, fila) => sum + (fila.value['respuestasSi'] as int),
-      ),
-      'sumaCalificacion': filas.fold<double>(
-        0,
-        (sum, fila) => sum + (fila.value['sumaCalificacion'] as double),
-      ),
-      'calificaciones': filas.fold<int>(
-        0,
-        (sum, fila) => sum + (fila.value['calificaciones'] as int),
-      ),
     };
 
     return Column(
@@ -836,12 +782,10 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
           child: Row(
             children: [
               Expanded(flex: 4, child: Text(encabezado, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
-              Expanded(flex: 2, child: Text(incluirAdherencia ? 'TOTAL 5 WHY' : 'REPORTES', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
-              Expanded(flex: 2, child: Text('REVISADOS', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
+              Expanded(flex: 2, child: Text('REPORTADOS', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
               Expanded(flex: 2, child: Text('PENDIENTES', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
-              Expanded(flex: 2, child: Text('APTOS', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
-              Expanded(flex: 2, child: Text('NO APTOS', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
-              Expanded(flex: 3, child: Text(incluirAdherencia ? 'ADHERENCIA' : 'CALIF. PROM.', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
+              Expanded(flex: 2, child: Text('REVISADOS', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
+              Expanded(flex: 2, child: Text('% AVANCE', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
             ],
           ),
         ),
@@ -864,7 +808,7 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                 var datos = esTotal ? totalDatos : filas[index].value;
                 String nombre = esTotal ? 'TOTAL GENERAL' : filas[index].key;
 
-                final valorFinal = incluirAdherencia ? porcentajeAdherencia(datos) : promedioCalificacion(datos);
+                final avanceStr = calcularAvance(datos['revisados'] as int, datos['total'] as int);
                 final estiloTotal = esTotal ? const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF1E293B), fontSize: 11) : const TextStyle(color: Color(0xFF334155), fontSize: 11);
 
                 return Container(
@@ -874,11 +818,9 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                     children: [
                       Expanded(flex: 4, child: Text(nombre, style: estiloTotal)),
                       Expanded(flex: 2, child: Text('${datos['total']}', textAlign: TextAlign.center, style: estiloTotal)),
-                      Expanded(flex: 2, child: Text('${datos['revisados']}', textAlign: TextAlign.center, style: estiloTotal)),
                       Expanded(flex: 2, child: Text('${datos['pendientes']}', textAlign: TextAlign.center, style: esTotal ? estiloTotal : const TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.bold))),
-                      Expanded(flex: 2, child: Text('${datos['aptos']}', textAlign: TextAlign.center, style: esTotal ? estiloTotal : const TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold))),
-                      Expanded(flex: 2, child: Text('${datos['noAptos']}', textAlign: TextAlign.center, style: esTotal ? estiloTotal : const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold))),
-                      Expanded(flex: 3, child: Text(valorFinal, textAlign: TextAlign.center, style: esTotal ? estiloTotal : const TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+                      Expanded(flex: 2, child: Text('${datos['revisados']}', textAlign: TextAlign.center, style: esTotal ? estiloTotal : const TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold))),
+                      Expanded(flex: 2, child: Text(avanceStr, textAlign: TextAlign.center, style: esTotal ? estiloTotal : const TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
                     ],
                   ),
                 );
@@ -4647,30 +4589,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
                                           WrapCrossAlignment.center,
                                       children: [
                                         ElevatedButton.icon(
-                                          onPressed: () => _evaluarConIA(r),
-                                          icon: const Icon(Icons.smart_toy, size: 12),
-                                          label: const Text(
-                                            'Auditor IA',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: const Color(0xFF4F46E5), // Indigo
-                                            foregroundColor: Colors.white,
-                                            elevation: 0,
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 0,
-                                            ),
-                                            minimumSize: const Size(0, 30),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                          ),
-                                        ),
-                                        ElevatedButton.icon(
                                           onPressed: () =>
                                               _abrirModalEdicion(r, bloqueado),
                                           icon: Icon(
@@ -4862,123 +4780,6 @@ class _HistorialCincoWhyScreenState extends State<HistorialCincoWhyScreen> {
         textAlign: align,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
-
-  Future<void> _evaluarConIA(Map<String, dynamic> registro) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 20),
-            Text('Auditor IA analizando el reporte...'),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      String envKey = dotenv.env['OPENROUTER_API_KEY'] ?? '';
-      final apiKey = envKey.isNotEmpty
-          ? envKey
-          : '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';
-      final url = Uri.parse('https://openrouter.ai/api/v1/chat/completions');
-
-      // Preparamos los datos que le mandaremos en la conversación
-      String mensajeUsuario = '''
-Por favor evalúa el siguiente reporte "5 Porqués":
-
-Datos del reporte:
-- Área: ${registro['area'] ?? 'No registrada'}
-- Problema/Disparador: ${registro['valor_disparador_alcanzado'] ?? 'No registrado'}
-- Participantes: ${registro['participantes'] ?? 'No registrados'}
-- Contención del problema: ${registro['contencion_problema'] ?? 'No registrada'}
-
-Respuestas a los 5 Porqués:
-1. ${registro['porque_1'] ?? 'No registrado'}
-2. ${registro['porque_2'] ?? 'No registrado'}
-3. ${registro['porque_3'] ?? 'No registrado'}
-4. ${registro['porque_4'] ?? 'No registrado'}
-5. ${registro['porque_5'] ?? 'No registrado'}
-
-Acciones propuestas (Tipos y descripciones):
-1. ${registro['accion_1'] ?? 'Ninguna'}: ${registro['descripcion_1'] ?? ''}
-2. ${registro['accion_2'] ?? 'Ninguna'}: ${registro['descripcion_2'] ?? ''}
-3. ${registro['accion_3'] ?? 'Ninguna'}: ${registro['descripcion_3'] ?? ''}
-4. ${registro['accion_4'] ?? 'Ninguna'}: ${registro['descripcion_4'] ?? ''}
-5. ${registro['accion_5'] ?? 'Ninguna'}: ${registro['descripcion_5'] ?? ''}
-''';
-
-      // 2. Hacer la solicitud HTTP directa a OpenRouter (usando Gemma 4 31B IT)
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
-          'HTTP-Referer': 'https://plantatocancipa.site', // OpenRouter lo recomienda
-          'X-Title': 'Auditor 5 Why', // OpenRouter lo recomienda
-        },
-        body: jsonEncode({
-          "model": "google/gemma-4-31b-it",
-          "messages": [
-            {
-              "role": "system",
-              "content": "Eres un auditor industrial experto en la metodología de resolución de problemas '5 Porqués' (5 Whys). Tu objetivo es evaluar la calidad de los reportes. Eres estricto, profesional y técnico. Siempre debes responder usando esta estructura EXACTA:\n\n1. **Calificación**: (Ej: 80/100)\n2. **Puntos Fuertes**: Lo que se hizo bien en este reporte específico (basado en los datos leídos).\n3. **Áreas de Mejora**: Qué falló en la secuencia lógica, si las respuestas tienen sentido, o si se llegó a una verdadera causa raíz en el porqué 5.\n4. **Retroalimentación General**: Un breve consejo para el analista."
-            },
-            {
-              "role": "user",
-              "content": mensajeUsuario
-            }
-          ],
-          "temperature": 0.2,
-        }),
-      );
-
-      if (context.mounted) Navigator.of(context).pop(); // Cerrar dialog de carga
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final textoRespuesta = data['choices'][0]['message']['content'];
-
-        if (context.mounted) _mostrarDialogoResultadoIA(textoRespuesta);
-      } else {
-        throw Exception('Error ${response.statusCode}: ${response.body}');
-      }
-    } catch (e) {
-      if (context.mounted) {
-        Navigator.of(context).pop(); // Asegurar cierre del loader
-        _mostrarDialogoResultadoIA('Ocurrió un error al contactar a la IA: \$e');
-      }
-    }
-  }
-
-  void _mostrarDialogoResultadoIA(String resultado) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: const [
-            Icon(Icons.smart_toy, color: Colors.blueAccent),
-            SizedBox(width: 10),
-            Expanded(child: Text('Evaluación del Auditor IA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
-          ],
-        ),
-        content: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.5,
-          child: SingleChildScrollView(
-            child: SelectableText(resultado),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cerrar'),
-          ),
-        ],
       ),
     );
   }

@@ -2843,6 +2843,9 @@ class _RevisionCincoWhyScreenState extends State<RevisionCincoWhyScreen> {
                   _buildTablasResumen(),
                   const SizedBox(height: 20),
 
+                  _buildTablasSupervisoresInterventores(),
+                  const SizedBox(height: 20),
+
                   _buildTablaGestion(),
                   const SizedBox(height: 40),
                 ],
@@ -3678,6 +3681,224 @@ class _RevisionCincoWhyScreenState extends State<RevisionCincoWhyScreen> {
           style: const TextStyle(fontSize: 12, color: Colors.black54),
         ),
       ],
+    );
+  }
+
+  String _estadoEvaluacion(Map<String, dynamic> registro) {
+    final estado = (registro['estado']?.toString() ?? '').trim().toUpperCase();
+    final aprobacion =
+        (registro['ultima_aprovacion']?.toString() ??
+                registro['ultima aprovacion']?.toString() ??
+                '')
+            .trim()
+            .toUpperCase();
+
+    if (aprobacion == 'APROBADO' || aprobacion == 'APTO') return 'APTO';
+    if (aprobacion == 'NO APROBADO' || aprobacion == 'NO APTO') {
+      return 'NO APTO';
+    }
+    if (aprobacion == 'VOLVER A REVISAR' ||
+        aprobacion == 'PENDIENTE POR REVISIÓN' ||
+        aprobacion == 'PENDIENTE POR REVISION') {
+      return 'PENDIENTE';
+    }
+    if (estado == 'APTO' || estado == 'NO APTO') return estado;
+    return 'PENDIENTE';
+  }
+
+  Map<String, Map<String, dynamic>> _agruparPorPersona(
+    List<Map<String, dynamic>> registros,
+    String campo,
+  ) {
+    final resumen = <String, Map<String, dynamic>>{};
+    for (final registro in registros) {
+      var nombre = registro[campo]?.toString().trim() ?? '';
+      if (nombre.isEmpty || nombre.toUpperCase() == 'NULL') {
+        nombre = 'SIN ${campo == 'supervisor' ? 'SUPERVISOR' : 'INTERVENTOR'}';
+      } else {
+        nombre = nombre.toUpperCase();
+      }
+
+      final fila = resumen.putIfAbsent(
+        nombre,
+        () => {
+          'total': 0,
+          'revisados': 0,
+          'pendientes': 0,
+        },
+      );
+      fila['total'] = (fila['total'] as int) + 1;
+
+      final estado = _estadoEvaluacion(registro);
+      if (estado != 'PENDIENTE') {
+        fila['revisados'] = (fila['revisados'] as int) + 1;
+      } else {
+        fila['pendientes'] = (fila['pendientes'] as int) + 1;
+      }
+    }
+    return resumen;
+  }
+
+  Widget _buildTablaResumenPersonas(
+    List<Map<String, dynamic>> registros, {
+    required String campo,
+    required String encabezado,
+  }) {
+    if (registros.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Text(
+          'No hay registros para mostrar con los filtros actuales.',
+          style: TextStyle(color: Colors.black54, fontSize: 12),
+        ),
+      );
+    }
+
+    final resumen = _agruparPorPersona(registros, campo);
+    final filas = resumen.entries.toList()
+      ..sort(
+        (a, b) => (b.value['total'] as int).compareTo(a.value['total'] as int),
+      );
+
+    if (filas.length > 5) {
+      filas.removeRange(5, filas.length);
+    }
+
+    final total = registros.length;
+    final totalRevisados = registros
+        .where((registro) => _estadoEvaluacion(registro) != 'PENDIENTE')
+        .length;
+    final totalPendientes = registros
+        .where((registro) => _estadoEvaluacion(registro) == 'PENDIENTE')
+        .length;
+
+    String calcularAvance(int realizadas, int total) {
+      if (total == 0) return '0.0%';
+      return '${(realizadas / total * 100).toStringAsFixed(1)}%';
+    }
+
+    final totalDatos = <String, dynamic>{
+      'total': total,
+      'revisados': totalRevisados,
+      'pendientes': totalPendientes,
+    };
+
+    return Column(
+      children: [
+        Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF1E293B),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Row(
+            children: [
+              Expanded(flex: 4, child: Text(encabezado, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
+              Expanded(flex: 2, child: Text('REPORTADOS', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
+              Expanded(flex: 2, child: Text('PENDIENTES', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
+              Expanded(flex: 2, child: Text('REVISADOS', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
+              Expanded(flex: 2, child: Text('% AVANCE', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
+            ],
+          ),
+        ),
+        Container(
+          height: 250,
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(color: Colors.grey.shade200),
+              right: BorderSide(color: Colors.grey.shade200),
+              bottom: BorderSide(color: Colors.grey.shade200),
+            ),
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
+          ),
+          child: Scrollbar(
+            thumbVisibility: true,
+            child: ListView.builder(
+              itemCount: filas.length + 1,
+              itemBuilder: (context, index) {
+                bool esTotal = index == filas.length;
+                var datos = esTotal ? totalDatos : filas[index].value;
+                String nombre = esTotal ? 'TOTAL GENERAL' : filas[index].key;
+
+                final avanceStr = calcularAvance(datos['revisados'] as int, datos['total'] as int);
+                final estiloTotal = esTotal ? const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF1E293B), fontSize: 11) : const TextStyle(color: Color(0xFF334155), fontSize: 11);
+
+                return Container(
+                  color: esTotal ? const Color(0xFFEFF6FF) : (index.isEven ? Colors.white : const Color(0xFFF8FAFC)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  child: Row(
+                    children: [
+                      Expanded(flex: 4, child: Text(nombre, style: estiloTotal)),
+                      Expanded(flex: 2, child: Text('${datos['total']}', textAlign: TextAlign.center, style: estiloTotal)),
+                      Expanded(flex: 2, child: Text('${datos['pendientes']}', textAlign: TextAlign.center, style: esTotal ? estiloTotal : const TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.bold))),
+                      Expanded(flex: 2, child: Text('${datos['revisados']}', textAlign: TextAlign.center, style: esTotal ? estiloTotal : const TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold))),
+                      Expanded(flex: 2, child: Text(avanceStr, textAlign: TextAlign.center, style: esTotal ? estiloTotal : const TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTablaPorSupervisor(List<Map<String, dynamic>> registros) {
+    return _buildTablaResumenPersonas(
+      registros,
+      campo: 'supervisor',
+      encabezado: 'SUPERVISOR',
+    );
+  }
+
+  Widget _buildTablaInterventores(List<Map<String, dynamic>> registros) {
+    return _buildTablaResumenPersonas(
+      registros,
+      campo: 'interventor',
+      encabezado: 'INTERVENTOR',
+    );
+  }
+
+  Widget _buildTablasSupervisoresInterventores() {
+    final registros = _registrosFiltrados;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 900;
+        if (isWide) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _buildCardBase(
+                  titulo: '5 Why por Supervisor',
+                  child: _buildTablaPorSupervisor(registros),
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: _buildCardBase(
+                  titulo: 'Revisión por Interventor',
+                  child: _buildTablaInterventores(registros),
+                ),
+              ),
+            ],
+          );
+        }
+        return Column(
+          children: [
+            _buildCardBase(
+              titulo: '5 Why por Supervisor',
+              child: _buildTablaPorSupervisor(registros),
+            ),
+            const SizedBox(height: 20),
+            _buildCardBase(
+              titulo: 'Revisión por Interventor',
+              child: _buildTablaInterventores(registros),
+            ),
+          ],
+        );
+      }
     );
   }
 

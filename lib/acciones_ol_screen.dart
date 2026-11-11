@@ -1847,22 +1847,6 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
       );
     }
 
-    int progreso = 0;
-    int retrasadas = 0;
-    int cerradas = 0;
-
-    for (var a in _todasLasAcciones) {
-      String est = _determinarEstado(a);
-      if (est == 'CERRADAS') {
-        cerradas++;
-      } else if (est == 'RETRASADAS')
-        retrasadas++;
-      else
-        progreso++;
-    }
-
-    int totalAcciones = _todasLasAcciones.length;
-
     int totalPaginas = max(
       1,
       (_accionesFiltradas.length / _registrosPorPagina).ceil(),
@@ -1885,10 +1869,10 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
             _buildEncabezado(),
             const SizedBox(height: 20),
 
-            _buildTarjetasKPI(progreso, retrasadas, cerradas, totalAcciones),
+            _buildBarraFiltros(),
             const SizedBox(height: 20),
 
-            _buildBarraFiltros(),
+            _buildDashboardEjecutivo(),
             const SizedBox(height: 20),
 
             _buildContenedorTabla(paginaActualLista, inicio, fin, totalPaginas),
@@ -1955,57 +1939,370 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
     );
   }
 
-  Widget _buildTarjetasKPI(
-    int progreso,
-    int retrasadas,
-    int cerradas,
-    int total,
-  ) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildDashboardEjecutivo() {
+    final registros = _accionesFiltradas;
+    int cerradas = 0;
+    int progreso = 0;
+    int retrasadas = 0;
+
+    for (var r in registros) {
+      String est = _determinarEstado(r);
+      if (est == 'CERRADAS') cerradas++;
+      else if (est == 'RETRASADAS') retrasadas++;
+      else progreso++;
+    }
+
+    final int total = registros.length;
+    final int pendientes = progreso + retrasadas;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 900;
+        if (isWide) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 6,
+                child: _buildCardBase(
+                  titulo: 'Avance de Acciones por Área (Top 5)',
+                  child: _buildTablaPorArea(registros),
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                flex: 4,
+                child: _buildCardBase(
+                  titulo: 'Estado de Acciones',
+                  child: _buildGraficoCircular(cerradas, pendientes, total),
+                ),
+              ),
+            ],
+          );
+        }
+        return Column(
+          children: [
+            _buildCardBase(
+              titulo: 'Avance de Acciones por Área (Top 5)',
+              child: _buildTablaPorArea(registros),
+            ),
+            const SizedBox(height: 20),
+            _buildCardBase(
+              titulo: 'Estado de Acciones',
+              child: _buildGraficoCircular(cerradas, pendientes, total),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildCardBase({required String titulo, required Widget child}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: Color(0xFFF1F5F9)),
+              ),
+            ),
+            child: Text(
+              titulo,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+          ),
+          Padding(padding: const EdgeInsets.all(16), child: child),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTablaPorArea(List<Map<String, dynamic>> registros) {
+    if (registros.isEmpty) {
+      return const SizedBox(
+        height: 200,
+        child: Center(
+          child: Text(
+            'No hay datos con los filtros actuales',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
+    final resumen = <String, Map<String, dynamic>>{};
+    for (final registro in registros) {
+      var area = registro['territorio']?.toString().trim().toUpperCase() ?? '';
+      if (area.isEmpty || area == 'NULL') {
+        area = 'SIN ÁREA';
+      }
+      if (area.startsWith('LINEA') || area.startsWith('LÍNEA')) {
+        area = 'LÍNEAS';
+      }
+
+      final fila = resumen.putIfAbsent(
+        area,
+        () => {'total': 0, 'cerradas': 0},
+      );
+      fila['total'] = (fila['total'] as int) + 1;
+
+      final est = _determinarEstado(registro);
+      if (est == 'CERRADAS') {
+        fila['cerradas'] = (fila['cerradas'] as int) + 1;
+      }
+    }
+
+    final filas = resumen.entries.toList()
+      ..sort(
+        (a, b) => (b.value['total'] as int).compareTo(a.value['total'] as int),
+      );
+
+    if (filas.length > 5) {
+      filas.removeRange(5, filas.length);
+    }
+
+    return Column(
       children: [
-        _buildKPICard('En progreso', '$progreso', const Color(0xFFFFB300)),
-        const SizedBox(width: 12),
-        _buildKPICard('Retrasadas', '$retrasadas', const Color(0xFFE53935)),
-        const SizedBox(width: 12),
-        _buildKPICard('Cerradas', '$cerradas', const Color(0xFF1E88E5)),
-        const SizedBox(width: 12),
-        _buildKPICard('Total Acciones', '$total', const Color(0xFF43A047)),
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: const BoxDecoration(
+            color: Color(0xFF1E293B),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
+          ),
+          child: const Row(
+            children: [
+              Expanded(
+                flex: 4,
+                child: Padding(
+                  padding: EdgeInsets.only(left: 12),
+                  child: Text(
+                    'ÁREA',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  'TOTAL',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  'CONCLUIDAS',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  '% AVANCE',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: Text(
+                  'BARRA',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        ...filas.map((fila) {
+          final nombre = fila.key;
+          final total = fila.value['total'] as int;
+          final cerradas = fila.value['cerradas'] as int;
+          final pct = total > 0 ? (cerradas / total) * 100 : 0.0;
+          final color = pct == 100
+              ? Colors.green
+              : (pct >= 80 ? Colors.green : Colors.orange);
+
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 12),
+                    child: Text(
+                      nombre,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF475569),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    '$total',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF475569),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    '$cerradas',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF475569),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    '${pct.toStringAsFixed(1)}%',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: pct / 100,
+                        backgroundColor: Colors.grey.shade200,
+                        color: color,
+                        minHeight: 8,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
       ],
     );
   }
 
-  Widget _buildKPICard(String titulo, String valor, Color colorTexto) {
-    return Container(
-      width: 130,
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        children: [
-          Text(
-            valor,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: colorTexto,
+  Widget _buildGraficoCircular(int cerradas, int pendientes, int total) {
+    if (total == 0) {
+      return const SizedBox(
+        height: 200,
+        child: Center(
+          child: Text(
+            'No hay datos con los filtros actuales',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 150,
+          width: 150,
+          child: CustomPaint(
+            painter: _PieChartPainterAcciones(
+              cerradas: cerradas,
+              pendientes: pendientes,
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            titulo,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
+        ),
+        const SizedBox(height: 30),
+        _leyendaPieAcciones('Concluidas', cerradas, Colors.green.shade600, total),
+        const SizedBox(height: 8),
+        _leyendaPieAcciones('Pendientes', pendientes, Colors.orange.shade600, total),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _leyendaPieAcciones(String label, int valor, Color color, int total) {
+    double pct = total == 0 ? 0 : (valor / total) * 100;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
+        Text(
+          '$valor (${pct.toStringAsFixed(1)}%)',
+          style: const TextStyle(fontSize: 12, color: Colors.black54),
+        ),
+      ],
     );
   }
 
@@ -2257,8 +2554,9 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2271,7 +2569,7 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
                 const Text(
                   'Acciones Registradas',
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
                   ),
@@ -2388,6 +2686,7 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
 
           const SizedBox(height: 10),
 
+          // TABLA REDISEÑADA ESTILO EXCEL / 5 WHY
           Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
             child: Scrollbar(
@@ -2398,150 +2697,87 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
                 controller: _tablaScrollController,
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
-                child: Padding(
-                  padding: const EdgeInsets.only(
-                    left: 12.0,
-                    right: 12.0,
-                    bottom: 12.0,
-                  ),
-                  child: Table(
-                    border: TableBorder.all(
-                      color: Colors.grey.shade300,
-                      width: 1,
-                    ),
-                    columnWidths: const {
-                      0: FixedColumnWidth(110),
-                      1: FixedColumnWidth(130),
-                      2: FixedColumnWidth(190),
-                      3: FixedColumnWidth(190),
-                      4: FixedColumnWidth(110),
-                      5: FixedColumnWidth(110),
-                      6: FixedColumnWidth(130),
-                      7: FixedColumnWidth(300),
-                      8: FixedColumnWidth(300),
-                      9: FixedColumnWidth(110),
-                      10: FixedColumnWidth(70),
-                    },
-                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                child: SizedBox(
+                  width: 1610, // Suma total del ancho de las columnas
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TableRow(
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFAFAFA),
-                        ),
+                      // Encabezado
+                      Row(
                         children: [
-                          _headerCell('Territorio'),
-                          _headerCell('Rutina'),
-                          _headerCell('Dueño'),
-                          _headerCell('Responsable'),
-                          _headerCell('Fecha Creación'),
-                          _headerCell('Fecha Cierre'),
-                          _headerCell('Hashtag'),
-                          _headerCell('Acciones'),
-                          _headerCell('Acción de Cierre / Evidencia'),
-                          _headerCell('Status'),
-                          _headerCell('Acción'),
+                          _buildCeldaCabecera('TERRITORIO', 110),
+                          _buildCeldaCabecera('RUTINA', 130),
+                          _buildCeldaCabecera('DUEÑO', 160),
+                          _buildCeldaCabecera('RESPONSABLE', 160),
+                          _buildCeldaCabecera('FECHA\nCREACIÓN', 90),
+                          _buildCeldaCabecera('FECHA\nCIERRE', 90),
+                          _buildCeldaCabecera('#HASHTAG', 110),
+                          _buildCeldaCabecera('HALLAZGO', 270, align: Alignment.centerLeft),
+                          _buildCeldaCabecera('ACCIÓN', 270, align: Alignment.centerLeft),
+                          _buildCeldaCabecera('ESTADO', 130),
+                          _buildCeldaCabecera('ACCIÓN\nEDIT.', 90),
                         ],
                       ),
+                      
+                      // Cuerpo de la tabla
+                      ...paginaLista.asMap().entries.map((entry) {
+                        int index = entry.key;
+                        Map<String, dynamic> row = entry.value;
 
-                      ...paginaLista.map((row) {
-                        String territorio =
-                            row['territorio']?.toString() ?? '-';
+                        String territorio = row['territorio']?.toString() ?? '-';
                         String rutina = row['rutina']?.toString() ?? '-';
-                        String dueno =
-                            row['dueño']?.toString() ??
-                            row['dueno']?.toString() ??
-                            '-';
-                        String responsable =
-                            row['responsable']?.toString() ?? '-';
+                        String dueno = row['dueño']?.toString() ?? row['dueno']?.toString() ?? '-';
+                        String responsable = row['responsable']?.toString() ?? '-';
 
-                        String rawFechaCreacion =
-                            row['fecha_creacion']?.toString() ??
-                            row['registr']?.toString() ??
-                            row['fecha']?.toString() ??
-                            '';
-                        String fechaCreacion = rawFechaCreacion.isNotEmpty
-                            ? rawFechaCreacion.split('T')[0]
-                            : '-';
+                        String rawFechaCreacion = row['fecha_creacion']?.toString() ?? row['registr']?.toString() ?? row['fecha']?.toString() ?? '';
+                        String fechaCreacion = rawFechaCreacion.isNotEmpty ? rawFechaCreacion.split('T')[0] : '-';
 
-                        String rawCierre =
-                            row['fecha_cierre']?.toString() ??
-                            row['cierre']?.toString() ??
-                            '';
-                        String fechaCierre =
-                            rawCierre.isNotEmpty &&
-                                rawCierre.toLowerCase() != 'null'
-                            ? rawCierre.split('T')[0]
-                            : 'Pendiente';
+                        String rawCierre = row['fecha_cierre']?.toString() ?? row['cierre']?.toString() ?? '';
+                        String fechaCierre = rawCierre.isNotEmpty && rawCierre.toLowerCase() != 'null' ? rawCierre.split('T')[0] : 'Pendiente';
 
-                        String hashtag =
-                            row['hashtag']?.toString() ??
-                            row['#hashtag']?.toString() ??
-                            '-';
+                        String hashtag = row['hashtag']?.toString() ?? row['#hashtag']?.toString() ?? '-';
                         String hallazgo = row['hallazgo']?.toString() ?? '-';
-                        String accionCierre =
-                            row['accion_cierre']?.toString() ??
-                            row['accion']?.toString() ??
-                            '-';
+                        String accionCierre = row['accion_cierre']?.toString() ?? row['accion']?.toString() ?? '-';
 
-                        String? urlEvidenciaHallazgo = row['evidencia_hallazgo']
-                            ?.toString();
-                        if (urlEvidenciaHallazgo == null ||
-                            (!urlEvidenciaHallazgo.startsWith('http') &&
-                                !urlEvidenciaHallazgo.startsWith(
-                                  'data:image',
-                                ))) {
+                        // Urls Evidencia
+                        String? urlEvidenciaHallazgo = row['evidencia_hallazgo']?.toString();
+                        if (urlEvidenciaHallazgo == null || (!urlEvidenciaHallazgo.startsWith('http') && !urlEvidenciaHallazgo.startsWith('data:image'))) {
                           urlEvidenciaHallazgo = _extraerUrl(hallazgo);
                         }
-                        String hallazgoLimpio = hallazgo
-                            .replaceAll(
-                              RegExp(
-                                r'(https?://[^\s\]]+|data:image/[^\s\]]+)',
-                              ),
-                              '',
-                            )
-                            .replaceAll('|', '')
-                            .trim();
+                        String hallazgoLimpio = hallazgo.replaceAll(RegExp(r'(https?://[^\s\]]+|data:image/[^\s\]]+)'), '').replaceAll('|', '').trim();
 
-                        String? urlEvidenciaCierre = row['evidencia_cierre']
-                            ?.toString();
-                        if (urlEvidenciaCierre == null ||
-                            (!urlEvidenciaCierre.startsWith('http') &&
-                                !urlEvidenciaCierre.startsWith('data:image'))) {
+                        String? urlEvidenciaCierre = row['evidencia_cierre']?.toString();
+                        if (urlEvidenciaCierre == null || (!urlEvidenciaCierre.startsWith('http') && !urlEvidenciaCierre.startsWith('data:image'))) {
                           urlEvidenciaCierre = _extraerUrl(rawCierre);
                         }
-                        String accionCierreLimpia = accionCierre
-                            .replaceAll(
-                              RegExp(
-                                r'(https?://[^\s\]]+|data:image/[^\s\]]+)',
-                              ),
-                              '',
-                            )
-                            .replaceAll('|', '')
-                            .trim();
+                        String accionCierreLimpia = accionCierre.replaceAll(RegExp(r'(https?://[^\s\]]+|data:image/[^\s\]]+)'), '').replaceAll('|', '').trim();
 
                         String estado = _determinarEstado(row);
+                        bool completado = estado == 'CERRADAS';
+                        
+                        Color rowColor = index % 2 == 0 ? Colors.white : const Color(0xFFF8FAFC);
+                        bool isLastRow = index == paginaLista.length - 1;
 
-                        return TableRow(
-                          decoration: const BoxDecoration(color: Colors.white),
-                          children: [
-                            _dataCell(territorio),
-                            _dataCell(rutina),
-                            _dataCellDueno(dueno),
-                            _dataCell(responsable),
-                            _dataCell(_formatearFechaVisual(fechaCreacion)),
-                            _dataCell(_formatearFechaVisual(fechaCierre)),
-                            _dataCell(hashtag),
-                            _dataCellTextoYEvidencia(
-                              hallazgoLimpio,
-                              urlEvidenciaHallazgo,
+                        return Container(
+                          color: rowColor,
+                          child: IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _buildCeldaCuerpoFlat(_dataCellString(territorio), 110, isLastRow: isLastRow),
+                                _buildCeldaCuerpoFlat(_dataCellString(rutina), 130, isLastRow: isLastRow),
+                                _buildCeldaCuerpoFlat(_dataCellDueno(dueno), 160, isLastRow: isLastRow),
+                                _buildCeldaCuerpoFlat(_dataCellString(responsable), 160, isLastRow: isLastRow),
+                                _buildCeldaCuerpoFlat(_dataCellString(_formatearFechaVisual(fechaCreacion)), 90, isLastRow: isLastRow),
+                                _buildCeldaCuerpoFlat(_dataCellString(_formatearFechaVisual(fechaCierre)), 90, isLastRow: isLastRow),
+                                _buildCeldaCuerpoFlat(_dataCellString(hashtag), 110, isLastRow: isLastRow),
+                                _buildCeldaCuerpoFlat(_dataCellTextoYEvidencia(hallazgoLimpio, urlEvidenciaHallazgo), 270, align: Alignment.centerLeft, isLastRow: isLastRow),
+                                _buildCeldaCuerpoFlat(_dataCellTextoYEvidencia(accionCierreLimpia, urlEvidenciaCierre), 270, align: Alignment.centerLeft, isLastRow: isLastRow),
+                                _buildCeldaCuerpoFlat(_buildBadgeEstado(estado, completado), 130, isLastRow: isLastRow),
+                                _buildCeldaCuerpoFlat(_dataCellAccionEdit(row), 90, isLastRow: isLastRow),
+                              ],
                             ),
-                            _dataCellTextoYEvidencia(
-                              accionCierreLimpia,
-                              urlEvidenciaCierre,
-                            ),
-                            _dataCellEstado(estado),
-                            _dataCellAccionEdit(row),
-                          ],
+                          ),
                         );
                       }),
                     ],
@@ -2646,40 +2882,76 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
     );
   }
 
-  Widget _headerCell(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
+  Widget _buildCeldaCabecera(
+    String texto,
+    double width, {
+    Alignment align = Alignment.center,
+  }) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      decoration: const BoxDecoration(
+        color: Color(0xFF1E293B),
+        border: Border(
+          right: BorderSide(color: Colors.white24, width: 1),
+        ), 
+      ),
+      alignment: align,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Flexible(
             child: Text(
-              text,
+              texto,
+              textAlign: align == Alignment.center ? TextAlign.center : TextAlign.left,
               style: const TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: Colors.white, 
+                letterSpacing: 0.5,
               ),
             ),
           ),
-          const SizedBox(width: 2),
-          const Icon(Icons.unfold_more, size: 12, color: Colors.grey),
+          const SizedBox(width: 4),
+          const Icon(Icons.unfold_more, size: 12, color: Colors.white70),
         ],
       ),
     );
   }
 
-  Widget _dataCell(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 10.5,
-          color: Colors.black87,
-          height: 1.3,
+  Widget _buildCeldaCuerpoFlat(
+    Widget hijo,
+    double width, {
+    Alignment align = Alignment.center,
+    required bool isLastRow,
+  }) {
+    BorderSide borderBottom = isLastRow 
+        ? const BorderSide(color: Color(0xFFCBD5E1), width: 2)
+        : const BorderSide(color: Color(0xFFE2E8F0), width: 1);
+
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: borderBottom,
+          right: const BorderSide(color: Color(0xFFE2E8F0), width: 1), 
         ),
+      ),
+      alignment: align,
+      child: hijo,
+    );
+  }
+
+  Widget _dataCellString(String text) {
+    return Text(
+      text,
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        fontSize: 11,
+        color: Color(0xFF334155),
+        height: 1.3,
       ),
     );
   }
@@ -2688,101 +2960,100 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
     String textoLimpio = texto.trim();
     bool tieneEvidencia = url != null && url.trim().isNotEmpty && url != 'null';
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Text(
-              textoLimpio.isEmpty ? '-' : textoLimpio,
-              style: const TextStyle(
-                fontSize: 10.5,
-                color: Colors.black87,
-                height: 1.3,
-              ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Text(
+            textoLimpio.isEmpty ? '-' : textoLimpio,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Color(0xFF334155),
+              height: 1.3,
             ),
           ),
-          if (tieneEvidencia) ...[
-            const SizedBox(width: 6),
-            IconButton(
-              icon: const Icon(
-                Icons.remove_red_eye_rounded,
-                size: 18,
-                color: Color(0xFF0D47A1),
-              ),
-              tooltip: 'Ver Evidencia',
-              constraints: const BoxConstraints(),
-              padding: EdgeInsets.zero,
-              onPressed: () => _mostrarPreviewImagen(url),
+        ),
+        if (tieneEvidencia) ...[
+          const SizedBox(width: 6),
+          IconButton(
+            icon: const Icon(
+              Icons.remove_red_eye_rounded,
+              size: 18,
+              color: Color(0xFF0D47A1),
             ),
-          ],
+            tooltip: 'Ver Evidencia',
+            constraints: const BoxConstraints(),
+            padding: EdgeInsets.zero,
+            onPressed: () => _mostrarPreviewImagen(url),
+          ),
         ],
-      ),
+      ],
     );
   }
 
   Widget _dataCellDueno(String dueno) {
     String inicial = dueno.isNotEmpty ? dueno[0].toUpperCase() : 'U';
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          CircleAvatar(
-            radius: 11,
-            backgroundColor: const Color(0xFF455A64),
-            child: Text(
-              inicial,
-              style: const TextStyle(
-                fontSize: 9,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        CircleAvatar(
+          radius: 11,
+          backgroundColor: const Color(0xFF455A64),
+          child: Text(
+            inicial,
+            style: const TextStyle(
+              fontSize: 9,
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              dueno,
-              style: const TextStyle(
-                fontSize: 10.5,
-                color: Colors.black87,
-                height: 1.3,
-              ),
+        ),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            dueno,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Color(0xFF334155),
+              height: 1.3,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _dataCellEstado(String estado) {
-    Color colorBadge;
-    if (estado == 'CERRADAS') {
-      colorBadge = const Color(0xFF607D8B);
-    } else if (estado == 'RETRASADAS')
-      colorBadge = const Color(0xFFE53935);
-    else
-      colorBadge = const Color(0xFFFFB300);
+  Widget _buildBadgeEstado(String estado, bool isSuccess) {
+    Color colorFondo;
+    Color colorTexto;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: colorBadge,
-          borderRadius: BorderRadius.circular(12),
+    if (estado == 'CERRADAS') {
+      colorFondo = const Color(0xFFDCFCE7);
+      colorTexto = const Color(0xFF166534);
+    } else if (estado == 'RETRASADAS') {
+      colorFondo = const Color(0xFFFEE2E2);
+      colorTexto = const Color(0xFF991B1B);
+    } else {
+      colorFondo = const Color(0xFFFEF3C7);
+      colorTexto = const Color(0xFF92400E);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: colorFondo,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        estado,
+        style: TextStyle(
+          color: colorTexto,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
         ),
-        child: Text(
-          estado,
-          style: const TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-          textAlign: TextAlign.center,
-        ),
+        textAlign: TextAlign.center,
       ),
     );
   }
@@ -2875,3 +3146,45 @@ class _AccionesOlScreenState extends State<AccionesOlScreen> {
     );
   }
 }
+
+class _PieChartPainterAcciones extends CustomPainter {
+  final int cerradas;
+  final int pendientes;
+
+  _PieChartPainterAcciones({
+    required this.cerradas,
+    required this.pendientes,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    double total = (cerradas + pendientes).toDouble();
+    if (total == 0) return;
+
+    double startAngle = -pi / 2;
+    Rect rect = Rect.fromCenter(
+      center: Offset(size.width / 2, size.height / 2),
+      width: size.width,
+      height: size.height,
+    );
+
+    final Paint paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 25;
+
+    // Pintar Cerradas
+    double sweepAptos = (cerradas / total) * 2 * pi;
+    paint.color = Colors.green.shade600;
+    canvas.drawArc(rect, startAngle, sweepAptos, false, paint);
+    startAngle += sweepAptos;
+
+    // Pintar Pendientes
+    double sweepPendientes = (pendientes / total) * 2 * pi;
+    paint.color = Colors.orange.shade600;
+    canvas.drawArc(rect, startAngle, sweepPendientes, false, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
