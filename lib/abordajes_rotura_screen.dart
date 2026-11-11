@@ -379,8 +379,56 @@ class _AbordajesRoturaScreenState extends State<AbordajesRoturaScreen> {
                                 SizedBox(width: 200, child: _buildDatoEstatico('Personal (Nombre):', reporte.personal)),
                                 SizedBox(width: 200, child: _buildDatoEstatico('Supervisor:', reporte.supervisor)),
                                 SizedBox(width: 120, child: _buildDatoEstatico('Zona:', reporte.zona)),
-                                SizedBox(width: 200, child: _buildDatoEstatico('Causal:', reporte.causal)),
+                                SizedBox(width: 120, child: _buildDatoEstatico('Ubicación:', reporte.ubicacion)),
+                                SizedBox(width: 250, child: _buildDatoEstatico('Causal:', reporte.causal)),
                               ],
+                            ),
+
+                            const SizedBox(height: 15),
+                            const Text('Detalle de SKUs Impactados:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                            const SizedBox(height: 8),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Table(
+                                columnWidths: const {
+                                  0: FlexColumnWidth(4),
+                                  1: FlexColumnWidth(2),
+                                  2: FlexColumnWidth(1),
+                                },
+                                border: TableBorder(
+                                  horizontalInside: BorderSide(color: Colors.grey.shade200, width: 1),
+                                  verticalInside: BorderSide(color: Colors.grey.shade200, width: 1),
+                                ),
+                                children: [
+                                  TableRow(
+                                    decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: const BorderRadius.vertical(top: Radius.circular(5))),
+                                    children: [
+                                      _buildModalTablaHeader('Descripción SKU'),
+                                      _buildModalTablaHeader('Tipo Material'),
+                                      _buildModalTablaHeader('Cant.', alignRight: true),
+                                    ],
+                                  ),
+                                  ...reporte.itemsSku.map((item) => TableRow(
+                                      children: [
+                                        _buildModalTablaCell(item['sku']?.toString() ?? 'N/A'),
+                                        _buildModalTablaCell(item['tipoMaterial']?.toString() ?? 'N/A'),
+                                        _buildModalTablaCell(item['cantidad']?.toString() ?? '0', alignRight: true, isBold: true),
+                                      ]
+                                  )).toList(),
+                                  TableRow(
+                                      decoration: BoxDecoration(color: Colors.grey.shade50),
+                                      children: [
+                                        _buildModalTablaCell('CANTIDAD TOTAL CONCILIADA:', isBold: true),
+                                        _buildModalTablaCell('-'),
+                                        _buildModalTablaCell(reporte.cantidad, alignRight: true, isBold: true),
+                                      ]
+                                  )
+                                ],
+                              ),
                             ),
 
                             const SizedBox(height: 15),
@@ -528,7 +576,6 @@ class _AbordajesRoturaScreenState extends State<AbordajesRoturaScreen> {
 
     String tiempoRespuesta = _calcularTiempoRespuesta(reporte.fechaEvento, reporte.fechaHoraAbordaje);
 
-    // Formatear fechas para mostrar en el ticket PNG
     String fechaHoraEventoFormat = _formatearFechaHoraCompleta(reporte.fechaEvento);
     String fechaHoraAbordajeFormat = _formatearFechaHoraCompleta(reporte.fechaHoraAbordaje);
 
@@ -600,7 +647,6 @@ class _AbordajesRoturaScreenState extends State<AbordajesRoturaScreen> {
                                   ),
                                   const SizedBox(height: 20),
 
-                                  // INDICADOR DE TIEMPO DE RESPUESTA
                                   Container(
                                     padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                                     decoration: BoxDecoration(
@@ -809,7 +855,6 @@ class _AbordajesRoturaScreenState extends State<AbordajesRoturaScreen> {
     );
   }
 
-  // --- Widgets Auxiliares para el diseño del Ticket PNG ---
   String _formatearFechaHoraCompleta(String? fechaIso) {
     if (fechaIso == null || fechaIso.trim().isEmpty || fechaIso.toLowerCase() == 'null') return 'No registrada';
     try {
@@ -866,6 +911,28 @@ class _AbordajesRoturaScreenState extends State<AbordajesRoturaScreen> {
           const SizedBox(height: 2),
           Text(val, style: const TextStyle(fontSize: 12, color: Colors.black87, fontWeight: FontWeight.w600)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildModalTablaHeader(String text, {bool alignRight = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+      child: Text(
+        text,
+        textAlign: alignRight ? TextAlign.right : TextAlign.left,
+        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+      ),
+    );
+  }
+
+  Widget _buildModalTablaCell(String text, {bool alignRight = false, bool isBold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+      child: Text(
+        text,
+        textAlign: alignRight ? TextAlign.right : TextAlign.left,
+        style: TextStyle(fontSize: 11, color: Colors.black87, fontWeight: isBold ? FontWeight.bold : FontWeight.normal),
       ),
     );
   }
@@ -1053,6 +1120,8 @@ class _AbordajesRoturaScreenState extends State<AbordajesRoturaScreen> {
             const SizedBox(height: 16),
             _buildKPIs(),
             const SizedBox(height: 16),
+            _buildTablasResumen(), // <-- NUEVAS TABLAS AÑADIDAS AQUÍ
+            const SizedBox(height: 16),
             Expanded(child: _buildTablaDatos()),
           ],
         ),
@@ -1179,6 +1248,115 @@ class _AbordajesRoturaScreenState extends State<AbordajesRoturaScreen> {
     );
   }
 
+  // ===========================================================================
+  // NUEVAS TABLAS RESUMEN
+  // ===========================================================================
+  Widget _buildTablasResumen() {
+    if (isLoading || reportesFiltrados.isEmpty) return const SizedBox();
+
+    Map<String, Map<String, int>> statsSupervisor = {};
+    Map<String, Map<String, int>> statsOperador = {};
+    int globalTotal = 0;
+    int globalRealizados = 0;
+    int globalPendientes = 0;
+
+    for (var r in reportesFiltrados) {
+      globalTotal++;
+      if (r.status == 'REALIZADO') globalRealizados++;
+      if (r.status == 'PENDIENTE') globalPendientes++;
+
+      statsSupervisor.putIfAbsent(r.supervisor, () => {'total': 0, 'realizados': 0, 'pendientes': 0});
+      statsSupervisor[r.supervisor]!['total'] = statsSupervisor[r.supervisor]!['total']! + 1;
+      if (r.status == 'REALIZADO') statsSupervisor[r.supervisor]!['realizados'] = statsSupervisor[r.supervisor]!['realizados']! + 1;
+      if (r.status == 'PENDIENTE') statsSupervisor[r.supervisor]!['pendientes'] = statsSupervisor[r.supervisor]!['pendientes']! + 1;
+
+      statsOperador.putIfAbsent(r.personal, () => {'total': 0, 'realizados': 0, 'pendientes': 0});
+      statsOperador[r.personal]!['total'] = statsOperador[r.personal]!['total']! + 1;
+      if (r.status == 'REALIZADO') statsOperador[r.personal]!['realizados'] = statsOperador[r.personal]!['realizados']! + 1;
+      if (r.status == 'PENDIENTE') statsOperador[r.personal]!['pendientes'] = statsOperador[r.personal]!['pendientes']! + 1;
+    }
+
+    var listSup = statsSupervisor.entries.toList()..sort((a, b) => b.value['total']!.compareTo(a.value['total']!));
+    var listOp = statsOperador.entries.toList()..sort((a, b) => b.value['total']!.compareTo(a.value['total']!));
+
+    return SizedBox(
+      height: 250, // Altura fija para que la tabla sea scrollable por dentro y no rompa el diseño
+      child: Row(
+        children: [
+          Expanded(child: _buildResumenTable('SUPERVISOR', listSup, globalTotal, globalRealizados, globalPendientes)),
+          const SizedBox(width: 16),
+          Expanded(child: _buildResumenTable('OPERADOR', listOp, globalTotal, globalRealizados, globalPendientes)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResumenTable(String title, List<MapEntry<String, Map<String, int>>> data, int gTotal, int gRealizados, int gPendientes) {
+    double gAvance = gTotal == 0 ? 0 : (gRealizados / gTotal) * 100;
+
+    return Container(
+        decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(4)),
+        child: Column(
+            children: [
+              // Header Oscuro
+              Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: const BoxDecoration(color: Color(0xFF1E293B), borderRadius: BorderRadius.vertical(top: Radius.circular(3))),
+                  child: Row(
+                    children: [
+                      Expanded(flex: 4, child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11))),
+                      const Expanded(flex: 1, child: Text('TOTAL', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11))),
+                      const Expanded(flex: 1, child: Text('REALIZADOS', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11))),
+                      const Expanded(flex: 1, child: Text('PENDIENTES', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11))),
+                      const Expanded(flex: 1, child: Text('AVANCE %', textAlign: TextAlign.right, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11))),
+                    ],
+                  )
+              ),
+              // Lista de Registros
+              Expanded(
+                  child: ListView.builder(
+                      itemCount: data.length,
+                      itemBuilder: (ctx, i) {
+                        var e = data[i];
+                        double avance = e.value['total']! == 0 ? 0 : (e.value['realizados']! / e.value['total']!) * 100;
+                        return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade100))),
+                            child: Row(
+                                children: [
+                                  Expanded(flex: 4, child: Text(e.key, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF0A2540)))),
+                                  Expanded(flex: 1, child: Text(e.value['total'].toString(), textAlign: TextAlign.center, style: const TextStyle(fontSize: 11))),
+                                  Expanded(flex: 1, child: Text(e.value['realizados'].toString(), textAlign: TextAlign.center, style: const TextStyle(fontSize: 11))),
+                                  Expanded(flex: 1, child: Text(e.value['pendientes'].toString(), textAlign: TextAlign.center, style: const TextStyle(fontSize: 11))),
+                                  Expanded(flex: 1, child: Text('${avance.toStringAsFixed(1)}%', textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                                ]
+                            )
+                        );
+                      }
+                  )
+              ),
+              // Footer (Totales Globales)
+              Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(color: Colors.blueGrey.shade100, borderRadius: const BorderRadius.vertical(bottom: Radius.circular(3))),
+                  child: Row(
+                      children: [
+                        const Expanded(flex: 4, child: Text('TOTALES GLOBALES', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0A2540)))),
+                        Expanded(flex: 1, child: Text(gTotal.toString(), textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0A2540)))),
+                        Expanded(flex: 1, child: Text(gRealizados.toString(), textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0A2540)))),
+                        Expanded(flex: 1, child: Text(gPendientes.toString(), textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0A2540)))),
+                        Expanded(flex: 1, child: Text('${gAvance.toStringAsFixed(1)}%', textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF0A2540)))),
+                      ]
+                  )
+              )
+            ]
+        )
+    );
+  }
+
+  // ===========================================================================
+  // TABLA INFERIOR DE DATOS
+  // ===========================================================================
   Widget _buildHeaderCell(String text, int flex) {
     return Expanded(flex: flex, child: Padding(padding: const EdgeInsets.only(right: 8.0), child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0A2540)))));
   }
@@ -1221,7 +1399,16 @@ class _AbordajesRoturaScreenState extends State<AbordajesRoturaScreen> {
                       decoration: BoxDecoration(color: Colors.grey.shade50, border: Border(top: BorderSide(color: Colors.grey.shade200), bottom: BorderSide(color: Colors.grey.shade300))),
                       child: Row(
                         children: [
-                          _buildHeaderCell('Fecha', 2), _buildHeaderCell('Supervisor', 3), _buildHeaderCell('Personal', 3), _buildHeaderCell('Zona', 2), _buildHeaderCell('Turno', 1), _buildHeaderCell('Cant.', 1), _buildHeaderCell('Causal', 7), _buildHeaderCell('Atribuible', 2), _buildHeaderCell('Estado', 2), _buildHeaderCell('Gestión', 2),
+                          _buildHeaderCell('Fecha', 2),
+                          _buildHeaderCell('Supervisor', 3),
+                          _buildHeaderCell('Personal', 3),
+                          _buildHeaderCell('Zona', 2),
+                          _buildHeaderCell('Turno', 1),
+                          _buildHeaderCell('Cant.', 1),
+                          // Causal eliminado de aquí
+                          _buildHeaderCell('Atribuible', 2),
+                          _buildHeaderCell('Estado', 2),
+                          _buildHeaderCell('Gestión', 2),
                         ],
                       ),
                     ),
@@ -1244,7 +1431,7 @@ class _AbordajesRoturaScreenState extends State<AbordajesRoturaScreen> {
                                 _buildDataCell(Text(reporte.zona, style: const TextStyle(fontSize: 13)), 2),
                                 _buildDataCell(Text(reporte.turno, style: const TextStyle(fontSize: 13)), 1),
                                 _buildDataCell(Text(reporte.cantidad, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)), 1),
-                                _buildDataCell(Text(reporte.causal, style: const TextStyle(fontSize: 13)), 7),
+                                // Causal eliminado de aquí
                                 _buildDataCell(Text(reporte.atribuible, style: const TextStyle(fontSize: 13)), 2),
                                 _buildDataCell(
                                     Align(
